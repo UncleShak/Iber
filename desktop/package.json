@@ -1,0 +1,46 @@
+{
+  "name": "antigravity-desktop",
+  "productName": "Antigravity",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Read-only cyber health check for small businesses",
+  "author": "Team Antigravity",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run",
+    "dist:dir": "electron-vite build && electron-builder --win --dir",
+    "dist": "electron-vite build && electron-builder --win nsis"
+  },
+  "dependencies": {
+    "@radix-ui/react-progress": "^1.1.1",
+    "@radix-ui/react-separator": "^1.1.1",
+    "@radix-ui/react-slot": "^1.1.1",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "lucide-react": "0.471.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "tailwind-merge": "3.0.1",
+    "zod": "3.24.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@testing-library/react": "16.1.0",
+    "@types/node": "22.10.7",
+    "@types/react": "19.0.7",
+    "@types/react-dom": "19.0.3",
+    "@vitejs/plugin-react": "4.3.4",
+    "electron": "34.0.0",
+    "electron-builder": "25.1.8",
+    "electron-vite": "3.0.0",
+    "jsdom": "25.0.1",
+    "tailwindcss": "^4.0.0",
+    "tw-animate-css": "1.2.0",
+    "typescript": "5.7.3",
+    "vite": "6.0.7",
+    "vitest": "2.1.8"
+  }
+}
