@@ -1,0 +1,17 @@
+# Environments
+.venv/
+.venv-win/
+node_modules/
+
+# Python caches and build artifacts
+__pycache__/
+*.pyc
+*.pyo
+build/
+dist/
+*.spec.bak
+
+# Test and run outputs
+out/
+.pytest_cache/
+.ruff_cache/
