@@ -23,9 +23,9 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 | D9 | R2 fix when System Restore is on | Low | Any time | CHANGED 2026-10-28 (Tshedi) |
 | D10 | Healthy fixture scores software red | High | Phase 10 | CHANGED 2026-10-28 (Tshedi) |
 | D11 | S7 amber has no fix (RPT-03) | Medium | Phase 10 | CHANGED 2026-10-28 (Tshedi) |
-| D12 | BitLocker "still encrypting" has no fix (RPT-03) | Medium | Phase 10 | OPEN |
-| D13 | When CFA/ASR are excluded; third-party AV always green | High | Phase 6 | OPEN |
-| D14 | Null fields and all-grey protection category | Medium | Phase 6 | OPEN |
+| D12 | BitLocker "still encrypting" has no fix (RPT-03) | Medium | Phase 10 | DECIDED 2026-10-28 (Tshedi) |
+| D13 | When CFA/ASR are excluded; third-party AV always green | High | Phase 6 | DECIDED 2026-10-28 (Tshedi) |
+| D14 | Null fields and all-grey protection category | Medium | Phase 6 | DECIDED 2026-10-28 (Tshedi) |
 
 ---
 
@@ -339,7 +339,7 @@ row. No current fixture has an empty list, so phase 10 won't trip on it.
 
 Logged: 2026-10-28, phase 6.
 
-**Status.** OPEN. Code follows the D11 precedent (add a catalogue fix).
+**Status.** DECIDED 2026-10-28 by Tshedi: keep the catalogue fix (D11 precedent).
 
 **Gap.** s2.5.4 rates `os_volume_protection == "on"` with
 `os_volume_encryption_pct < 100` amber with no fix id ("still encrypting;
@@ -365,7 +365,7 @@ Test: `test_bitlocker_still_encrypting_is_amber_with_finish_fix`.
 
 Logged: 2026-10-28, phase 6.
 
-**Status.** OPEN.
+**Status.** DECIDED 2026-10-28 by Tshedi: keep as built.
 
 **Gap.** s2.5.4 says "If Defender is off, the ASR and CFA rows ... are
 excluded from rating" without defining "off". Its Defender table only greens
@@ -400,7 +400,7 @@ Tests: `test_third_party_av_wins_over_stale_signatures_and_tamper_off`,
 
 Logged: 2026-10-28, phase 6.
 
-**Status.** OPEN.
+**Status.** DECIDED 2026-10-28 by Tshedi: keep as built.
 
 **Gap.** s2.5.4 covers section `unavailable`/`failed` but not null fields
 inside an `ok` section, nor a category where no sub-check can be rated.
