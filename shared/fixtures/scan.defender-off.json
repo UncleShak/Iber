@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "2026-11-14T17-02-44Z_0003",
+  "collected_at": "2026-11-14T17:02:44Z",
+  "collector_version": "0.1.0",
+  "duration_ms": 6230,
+  "host": { "hostname_hash": "sha256:3333", "os_caption": "Microsoft Windows 10 Pro", "os_build": "19045", "os_edition": "Professional", "is_admin": false, "ps_version": "5.1.19041.5007" },
+  "backup": { "status": "ok", "error": null, "file_history_enabled": false, "file_history_last_backup": null, "windows_backup_last_success": null, "onedrive_kfm_folders": ["Documents"], "shadow_copy_count": null, "third_party_agents": [] },
+  "patch": { "status": "ok", "error": null, "hotfix_count": 9, "latest_hotfix_installed_on": "2026-09-20", "days_since_latest_hotfix": 55, "hotfixes": [ { "kb": "KB5043064", "installed_on": "2026-09-20" } ], "pending_reboot": true },
+  "software": { "status": "ok", "error": null, "installed": [ { "name": "Google Chrome", "version": "118.0.5993.118", "publisher": "Google LLC" } ] },
+  "protection": {
+    "bitlocker": { "status": "unavailable", "error": "Requires administrator rights", "os_volume_protection": null, "os_volume_encryption_pct": null, "encryption_method": null },
+    "defender": { "status": "ok", "error": null, "antivirus_enabled": false, "realtime_enabled": false, "tamper_protected": false, "signature_age_days": 21, "third_party_av": null },
+    "cfa": { "status": "ok", "error": null, "mode": "disabled" },
+    "asr": { "status": "ok", "error": null, "rules": [] }
+  },
+  "recovery": { "status": "ok", "error": null, "winre_enabled": null, "system_restore_enabled": true, "restore_point_count": null, "latest_restore_point": null }
+}
