@@ -44,6 +44,14 @@ def baseline():
 # --- helpers beyond s2.10, used by the phase 1-3 tests ---
 
 
+def pytest_configure(config):
+    # D3: clipping is a runtime safety net only; any test that clips fails
+    # unless it expects the warning with pytest.warns.
+    config.addinivalue_line(
+        "filterwarnings", "error::antigravity_engine.scoring.result.ClippedWarning"
+    )
+
+
 @pytest.fixture
 def make_raw(healthy_raw):
     """make_raw({"patch": {"hotfixes": {}}}) -> dict (healthy fixture with overrides)"""

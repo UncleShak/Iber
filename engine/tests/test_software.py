@@ -13,7 +13,7 @@ import pytest
 from antigravity_engine.baseline import baseline_from_dict
 from antigravity_engine.scoring import software
 from antigravity_engine.scoring.fixes import CATALOGUE, resolve
-from antigravity_engine.scoring.result import CategoryResult, Status
+from antigravity_engine.scoring.result import CategoryResult, ClippedWarning, Status
 
 from conftest import ROOT
 
@@ -321,7 +321,15 @@ def test_fix_steps_for_unattached_fix_rejected():
                              fix_steps={"install-updates": ["Do it."]})
 
 
-@pytest.mark.parametrize("steps", [[], ["x"] * 6, [""], ["x" * 161]])
+@pytest.mark.parametrize("steps", [[], ["x"] * 6, [""]])
 def test_fix_steps_must_fit_report_schema(steps):
     with pytest.raises(ValueError):
         CategoryResult.rated("software", "amber", "Old.", fix_ids=[FIX], fix_steps={FIX: steps})
+
+
+def test_overlong_step_is_clipped_with_warning():
+    # D3: step text carries app names from the scan, so it clips rather than fails.
+    with pytest.warns(ClippedWarning, match="clipped to 160"):
+        r = CategoryResult.rated("software", "amber", "Old.", fix_ids=[FIX],
+                                 fix_steps={FIX: ["x" * 161, "Short."]})
+    assert [len(step) for step in r.fix_steps[FIX]] == [160, 6]

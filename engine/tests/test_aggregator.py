@@ -13,6 +13,7 @@ from antigravity_engine.scoring.result import (
     RATED,
     TITLES,
     CategoryResult,
+    ClippedWarning,
     EvidenceRow,
     Status,
     plain_explanation,
@@ -46,9 +47,14 @@ def _results(**statuses):
     return [_result(c, statuses.get(c, "green")) for c in CATEGORY_ORDER]
 
 
+def _summary(results):
+    fixes, _ = resolve(p for r in results for p in r.fix_pairs())
+    return summary(results, fixes)
+
+
 def _report(scan, results):
     fixes, top = resolve(p for r in results for p in r.fix_pairs())
-    return build_report(scan, results, fixes, top, overall(results), summary(results),
+    return build_report(scan, results, fixes, top, overall(results), summary(results, fixes),
                         __version__, "2026-11-01", generated_at=FIXED_NOW)
 
 
@@ -99,17 +105,27 @@ def test_green_cannot_attach_fixes():
         R("backup", "green", "x", fix_ids=["run-backup-now"])
 
 
-def test_explanation_length_enforced():
+def test_empty_explanation_rejected():
     with pytest.raises(ValueError):
         R("backup", "green", "")
-    with pytest.raises(ValueError):
-        R("backup", "green", "x" * 201)
 
 
-def test_evidence_capped_at_eight_rows():
+def test_overlong_explanation_is_clipped_with_warning():
+    # D3: scan-driven limits clip instead of turning a finding into "Check failed".
+    with pytest.warns(ClippedWarning, match="explanation clipped from 201"):
+        r = R("backup", "green", "x" * 201)
+    assert len(r.explanation) == 200 and r.explanation.endswith("...")
+
+
+def test_explanation_of_exactly_200_is_kept():
+    assert R("backup", "green", "x" * 200).explanation == "x" * 200
+
+
+def test_evidence_cut_to_eight_rows_with_warning():
     rows = [EvidenceRow(f"r{i}", "v") for i in range(9)]
-    with pytest.raises(ValueError):
-        R("backup", "green", "x", evidence=rows)
+    with pytest.warns(ClippedWarning, match="9 rows to 8"):
+        r = R("backup", "green", "x", evidence=rows)
+    assert [row.label for row in r.evidence] == [f"r{i}" for i in range(8)]
 
 
 @pytest.mark.parametrize("error,expected", [
@@ -178,16 +194,16 @@ def test_nothing_rated_has_no_score():
 
 
 def test_summary_one_urgent_issue_singular():
-    assert summary(_results(backup="red")) == "1 urgent issue needs attention this week."
+    assert _summary(_results(backup="red")) == "1 urgent issue needs attention this week."
 
 
 def test_summary_urgent_issues_plural():
-    assert summary(_results(backup="red", protection="red", software="amber")) == \
+    assert _summary(_results(backup="red", protection="red", software="amber")) == \
         "2 urgent issues need attention this week."
 
 
 def test_summary_tighten_up_plural():
-    assert summary(_results(backup="amber", patch="amber")) == \
+    assert _summary(_results(backup="amber", patch="amber")) == \
         "No urgent issues, but 2 things to tighten up."
 
 
@@ -195,28 +211,54 @@ def test_summary_tighten_up_singular():
     # backup amber with only backup + recovery rated: 30*0.5/40 = 37.5 >= 25.
     s = {"patch": "unavailable", "software": "unavailable", "protection": "unavailable",
          "backup": "amber"}
-    assert summary(_results(**s)) == "No urgent issues, but 1 thing to tighten up."
+    assert _summary(_results(**s)) == "No urgent issues, but 1 thing to tighten up."
 
 
 def test_summary_good_shape_below_25():
     # One amber protection: 15 < 25.
-    assert summary(_results(protection="amber")) == "This PC is in good shape. Keep it that way."
-    assert summary(_results()) == "This PC is in good shape. Keep it that way."
+    assert _summary(_results(protection="amber")) == "This PC is in good shape. Keep it that way."
+    assert _summary(_results()) == "This PC is in good shape. Keep it that way."
 
 
 def test_summary_failed_suffix():
-    assert summary(_results(backup="red", patch="failed")) == \
+    assert _summary(_results(backup="red", patch="failed")) == \
         "1 urgent issue needs attention this week. Some checks couldn't run."
 
 
+def test_summary_counts_amber_fixes_not_categories():
+    # Two amber categories, four amber fixes: the headline matches the fix cards (D2).
+    results = [
+        R("backup", "amber", "Backup is 10 days old.", fix_ids=["run-backup-now"]),
+        _result("patch", "green"),
+        _result("software", "green"),
+        R("protection", "amber", "Some layers are off.",
+          fix_ids=["enable-cfa", "enable-asr-rules", "enable-tamper-protection"]),
+        _result("recovery", "green"),
+    ]
+    assert _summary(results) == "No urgent issues, but 4 things to tighten up."
+
+
+def test_summary_merged_duplicate_fix_counts_once():
+    results = _results(backup="amber", patch="amber")
+    fixes = [{"id": "run-backup-now", "severity": "amber"}]
+    assert summary(results, fixes) == "No urgent issues, but 1 thing to tighten up."
+
+
+def test_summary_falls_back_to_amber_categories_without_fixes():
+    # Amber results that attach no fix (e.g. BitLocker still encrypting).
+    results = [R(c, "amber", f"{c} is amber.") if c in ("backup", "patch")
+               else _result(c, "green") for c in CATEGORY_ORDER]
+    assert summary(results, []) == "No urgent issues, but 2 things to tighten up."
+
+
 def test_unavailable_does_not_add_failed_suffix():
-    assert summary(_results(patch="unavailable")) == "This PC is in good shape. Keep it that way."
+    assert _summary(_results(patch="unavailable")) == "This PC is in good shape. Keep it that way."
 
 
 def test_summary_nothing_rated():
-    assert summary(_results(**{c: "unavailable" for c in CATEGORY_ORDER})) == \
+    assert _summary(_results(**{c: "unavailable" for c in CATEGORY_ORDER})) == \
         "We couldn't check enough of this PC to rate it."
-    assert summary(_results(**{c: "failed" for c in CATEGORY_ORDER})) == \
+    assert _summary(_results(**{c: "failed" for c in CATEGORY_ORDER})) == \
         "We couldn't check enough of this PC to rate it. Some checks couldn't run."
 
 

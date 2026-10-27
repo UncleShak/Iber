@@ -12,9 +12,9 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 
 | ID | Topic | Priority | Decide by | Status |
 |---|---|---|---|---|
-| D1 | Per-fix severity | High | Before phase 4 | DECIDED 2026-10-28 (Tshedi) |
-| D2 | "n things to tighten up" count | High | Before phase 4 | DECIDED 2026-10-28 (Tshedi) |
-| D3 | Strict CategoryResult guards | Medium | Before phase 4 | DECIDED 2026-10-28 (Tshedi) |
+| D1 | Per-fix severity | High | Before phase 4 | CHANGED 2026-10-28 (Tshedi) |
+| D2 | "n things to tighten up" count | High | Before phase 4 | CHANGED 2026-10-28 (Tshedi) |
+| D3 | Strict CategoryResult guards | Medium | Before phase 4 | CHANGED 2026-10-28 (Tshedi) |
 | D4 | Error report summary and run_id | Medium | Phase 7 (CLI) | OPEN |
 | D5 | generated_at uses the wall clock | Low | Phase 7 / s2.14 work | OPEN |
 | D6 | Em dash written as an escape | Low | Any time | OPEN |
@@ -28,7 +28,20 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 
 ## D1. Per-fix severity
 
-**Status.** DECIDED 2026-10-28 by Tshedi: keep the solution in code as is.
+**Status.** CHANGED 2026-10-28 by Tshedi (first DECIDED as is the same day).
+Each catalogue `Fix` now has `max_severity` taken from the s2.9 severity
+column: amber-only fixes (encrypt-device-home, enable-tamper-protection,
+enable-cfa, enable-asr-rules, run-backup-now, verify-backup-agent,
+restart-to-finish-updates, plan-windows-11, create-restore-point, and
+rescan-installed-apps from D11) are capped at amber in `resolve()`, whatever
+the category status. `fix_severity` stays, now only for red-capable fixes
+attached by an amber rule inside a red category (e.g.
+update-defender-definitions at 4-7 days while BitLocker is off). The patch
+scorer's own plan-windows-11 override was removed. Side effect: R2's
+create-restore-point (D9) now ranks amber in report.json.
+Files: `scoring/fixes.py` (`Fix.max_severity`, `resolve`), `scoring/patch.py`.
+Tests: `test_catalogue_matches_spec_table`, `test_amber_only_fix_is_capped_*`,
+`test_cap_without_fix_severity_keeps_cfa_out_of_top_three` (test_ranking.py).
 
 **Gap.** s2.9 says a fix's severity is "the severity of the worst rule that
 attached it". s0.8 gives a category only a `fix_ids` list, so the category
@@ -59,7 +72,13 @@ attaches fixes of mixed severity.
 
 ## D2. "n things to tighten up" count
 
-**Status.** DECIDED 2026-10-28 by Tshedi: keep the solution in code as is.
+**Status.** CHANGED 2026-10-28 by Tshedi (first DECIDED as is the same day).
+n = number of amber fixes in the resolved `fixes[]`, so the headline matches
+the fix cards; if no amber result attached a fix, n falls back to the number
+of amber categories. `risk.summary(results, fixes)` now takes the resolved
+fixes as a required argument; the phase 7 CLI must call `resolve()` first.
+File: `engine/antigravity_engine/risk.py`. Tests: `test_summary_*`
+(test_aggregator.py).
 
 **Gap.** s2.6 summary row "No urgent issues, but {n} things to tighten up."
 does not define n.
@@ -81,7 +100,18 @@ category. It changes the headline the owner-manager reads first.
 
 ## D3. Strict CategoryResult guards
 
-**Status.** DECIDED 2026-10-28 by Tshedi: keep the solution in code as is.
+**Status.** CHANGED 2026-10-28 by Tshedi (first DECIDED as is the same day).
+Scan-driven limits now clip instead of raising: an explanation over 200
+chars is cut with "...", evidence past 8 rows keeps the first 8, and a
+`fix_steps` step over 160 chars is cut with "..." (it carries app names, D8).
+Each clip emits a `ClippedWarning` (stderr at runtime). Logic guards still
+raise: unknown category, unrated status built directly, empty explanation,
+fixes on a green/unrated result, bad `fix_severity`, 0 or more than 5 steps,
+an empty step. tests/conftest.py turns `ClippedWarning` into an error, so any
+test that clips fails unless it expects the warning; test_integrity.py
+checks no fixture clips in any existing scorer.
+File: `engine/antigravity_engine/scoring/result.py`
+(`ClippedWarning`, `CategoryResult._clip_scan_driven`).
 
 **Gap.** s2.7 only requires that unavailable/failed come from the factory
 methods. Other invariants are unstated in code terms.

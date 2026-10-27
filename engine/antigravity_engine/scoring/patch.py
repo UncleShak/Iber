@@ -132,7 +132,8 @@ def score(scan: ScanModel, ctx: Baseline) -> CategoryResult:
         rows.append(EvidenceRow("Restart needed to finish updates", "No", Status.GREEN))
 
     # OS support overlay: at least amber, never better than P1-P6 gave.
-    fix_severity: dict[str, Status] = {}
+    # plan-windows-11 is amber-only in the catalogue, so it stays amber even
+    # inside a red category (D1).
     os_value = f"{scan.host.os_caption} (build {scan.host.os_build})"
     overlay = _os_overlay(scan, ctx)
     if overlay is None:
@@ -140,10 +141,8 @@ def score(scan: ScanModel, ctx: Baseline) -> CategoryResult:
     else:
         rows.append(EvidenceRow("Windows version", f"{os_value}, out of support", Status.AMBER))
         status = worst([status, Status.AMBER])
-        if status == Status.RED:
-            fix_severity["plan-windows-11"] = Status.AMBER
         fix_ids = [*fix_ids, "plan-windows-11"]
         joined = f"{explanation} {overlay}"
         explanation = joined if len(joined) <= MAX_EXPLANATION else overlay
 
-    return CategoryResult.rated(CATEGORY, status, explanation, rows, fix_ids, fix_severity)
+    return CategoryResult.rated(CATEGORY, status, explanation, rows, fix_ids)

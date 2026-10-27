@@ -24,6 +24,9 @@ class Fix:
     steps: tuple[str, ...]
     effort_minutes: int
     needs_admin: bool
+    # s2.9 severity column: amber-only fixes never rank as red, whatever the
+    # category status (D1). Red/amber fixes keep the attaching rule's severity.
+    max_severity: Status = Status.RED
 
     def to_dict(self, severity: Status, steps: Sequence[str] | None = None) -> dict:
         return {
@@ -87,7 +90,7 @@ _FIXES = (
             "Switch Device encryption On. You must be signed in with a Microsoft account.",
             "If the option is missing, ask your IT helper about upgrading to Windows Pro.",
         ),
-        15, True,
+        15, True, max_severity=Status.AMBER,
     ),
     Fix(
         "enable-tamper-protection", "protection",
@@ -98,7 +101,7 @@ _FIXES = (
             "Choose Virus & threat protection, then Manage settings.",
             "Switch Tamper Protection to On.",
         ),
-        3, True,
+        3, True, max_severity=Status.AMBER,
     ),
     Fix(
         "enable-cfa", "protection",
@@ -110,7 +113,7 @@ _FIXES = (
             "Switch Controlled folder access to On.",
             "If a trusted program gets blocked, click Allow an app through Controlled folder access and add it.",
         ),
-        5, True,
+        5, True, max_severity=Status.AMBER,
     ),
     Fix(
         "enable-asr-rules", "protection",
@@ -121,7 +124,7 @@ _FIXES = (
             "Ask for the ransomware-related rules to be set to Block.",
             "Use the PC as normal for a day and report anything that stops working.",
         ),
-        15, True,
+        15, True, max_severity=Status.AMBER,
     ),
     # --- backup ---
     Fix(
@@ -147,7 +150,7 @@ _FIXES = (
             "Click Run now and wait for it to finish.",
             "Set a weekly reminder to plug the drive in.",
         ),
-        10, False,
+        10, False, max_severity=Status.AMBER,
     ),
     Fix(
         "verify-backup-agent", "backup",
@@ -159,7 +162,7 @@ _FIXES = (
             "If it is older than a week or shows errors, run a backup now.",
             "Try restoring one file to make sure the backup really works.",
         ),
-        10, False,
+        10, False, max_severity=Status.AMBER,
     ),
     # --- patch ---
     Fix(
@@ -183,7 +186,7 @@ _FIXES = (
             "Click Start, then Power, then Restart.",
             "Wait for Windows to finish installing before you log back in.",
         ),
-        10, False,
+        10, False, max_severity=Status.AMBER,
     ),
     Fix(
         "plan-windows-11", "patch",
@@ -194,7 +197,7 @@ _FIXES = (
             "If an upgrade to Windows 11 is offered, back up your files first, then install it.",
             "If this PC can't run Windows 11, ask your IT helper about Extended Security Updates or a new PC.",
         ),
-        60, True,
+        60, True, max_severity=Status.AMBER,
     ),
     # --- software ---
     Fix(
@@ -218,7 +221,7 @@ _FIXES = (
             "Run the scan again.",
             "If the programs list is still empty, ask your IT helper to check the PC.",
         ),
-        5, False,
+        5, False, max_severity=Status.AMBER,
     ),
     # --- recovery ---
     Fix(
@@ -253,7 +256,7 @@ _FIXES = (
             "Click Create, type today's date as the name and click Create again.",
             "Wait for the success message.",
         ),
-        5, True,
+        5, True, max_severity=Status.AMBER,
     ),
 )
 
@@ -279,7 +282,8 @@ def resolve(
     steps maps a fix id to run-specific steps (CategoryResult.fix_steps) that
     replace the catalogue steps; ids not in it keep the catalogue text.
 
-    Duplicates collapse to one entry whose severity is the worst attaching rule.
+    Duplicates collapse to one entry whose severity is the worst attaching rule,
+    then capped at the fix's catalogue max_severity (s2.9, D1).
     fixes[] is returned in rank order; top_fixes is its first <= 3 ids.
     All green (no pairs) -> ([], []).
     """
@@ -293,6 +297,11 @@ def resolve(
         current = merged.get(fix_id)
         if current is None or _SEVERITY_RANK[sev] < _SEVERITY_RANK[current]:
             merged[fix_id] = sev
+
+    for fix_id, sev in merged.items():
+        cap = CATALOGUE[fix_id].max_severity
+        if _SEVERITY_RANK[cap] > _SEVERITY_RANK[sev]:
+            merged[fix_id] = cap
 
     ranked = sorted(merged, key=lambda f: _rank_key(f, merged[f]))
     steps = steps or {}

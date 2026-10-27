@@ -7,27 +7,27 @@ from antigravity_engine.scoring.result import CategoryResult, EvidenceRow, Statu
 
 R = CategoryResult.rated
 
-# s2.9 table: id -> (category, effort_minutes, needs_admin)
+# s2.9 table: id -> (category, effort_minutes, needs_admin, max severity)
 SPEC_TABLE = {
-    "enable-defender": ("protection", 5, True),
-    "update-defender-definitions": ("protection", 5, False),
-    "turn-on-bitlocker": ("protection", 20, True),
-    "encrypt-device-home": ("protection", 15, True),
-    "enable-tamper-protection": ("protection", 3, True),
-    "enable-cfa": ("protection", 5, True),
-    "enable-asr-rules": ("protection", 15, True),
-    "turn-on-file-history": ("backup", 15, False),
-    "run-backup-now": ("backup", 10, False),
-    "verify-backup-agent": ("backup", 10, False),
-    "install-updates": ("patch", 30, True),
-    "restart-to-finish-updates": ("patch", 10, False),
-    "plan-windows-11": ("patch", 60, True),
-    "update-outdated-apps": ("software", 20, False),
+    "enable-defender": ("protection", 5, True, "red"),
+    "update-defender-definitions": ("protection", 5, False, "red"),
+    "turn-on-bitlocker": ("protection", 20, True, "red"),
+    "encrypt-device-home": ("protection", 15, True, "amber"),
+    "enable-tamper-protection": ("protection", 3, True, "amber"),
+    "enable-cfa": ("protection", 5, True, "amber"),
+    "enable-asr-rules": ("protection", 15, True, "amber"),
+    "turn-on-file-history": ("backup", 15, False, "red"),
+    "run-backup-now": ("backup", 10, False, "amber"),
+    "verify-backup-agent": ("backup", 10, False, "amber"),
+    "install-updates": ("patch", 30, True, "red"),
+    "restart-to-finish-updates": ("patch", 10, False, "amber"),
+    "plan-windows-11": ("patch", 60, True, "amber"),
+    "update-outdated-apps": ("software", 20, False, "red"),
     # Added beyond s2.9 by decision D11 (S7 empty installed list).
-    "rescan-installed-apps": ("software", 5, False),
-    "enable-winre": ("recovery", 10, True),
-    "turn-on-system-restore": ("recovery", 5, True),
-    "create-restore-point": ("recovery", 5, True),
+    "rescan-installed-apps": ("software", 5, False, "amber"),
+    "enable-winre": ("recovery", 10, True, "red"),
+    "turn-on-system-restore": ("recovery", 5, True, "red"),
+    "create-restore-point": ("recovery", 5, True, "amber"),
 }
 
 
@@ -44,9 +44,10 @@ def _green(cid):
 
 def test_catalogue_matches_spec_table():
     assert set(CATALOGUE) == set(SPEC_TABLE)
-    for fix_id, (category, effort, admin) in SPEC_TABLE.items():
+    for fix_id, (category, effort, admin, cap) in SPEC_TABLE.items():
         fix = CATALOGUE[fix_id]
-        assert (fix.category, fix.effort_minutes, fix.needs_admin) == (category, effort, admin), fix_id
+        assert (fix.category, fix.effort_minutes, fix.needs_admin, fix.max_severity) == \
+            (category, effort, admin, cap), fix_id
 
 
 @pytest.mark.parametrize("fix_id", sorted(SPEC_TABLE))
@@ -170,3 +171,44 @@ def test_fix_severity_defaults_to_category_status():
 def test_fix_severity_cannot_exceed_category():
     with pytest.raises(ValueError):
         R("protection", "amber", "CFA off.", fix_ids=["enable-cfa"], fix_severity={"enable-cfa": "red"})
+
+
+# --- D1: catalogue severity caps -------------------------------------------
+
+AMBER_ONLY = sorted(f for f, row in SPEC_TABLE.items() if row[3] == "amber")
+
+
+@pytest.mark.parametrize("fix_id", AMBER_ONLY)
+def test_amber_only_fix_is_capped_in_a_red_category(fix_id):
+    fixes, _ = resolve([(fix_id, "red")])
+    assert fixes[0]["severity"] == "amber"
+
+
+@pytest.mark.parametrize("fix_id", ["enable-defender", "install-updates", "enable-winre",
+                                    "update-defender-definitions"])
+def test_red_capable_fix_keeps_red(fix_id):
+    fixes, _ = resolve([(fix_id, "red")])
+    assert fixes[0]["severity"] == "red"
+
+
+def test_cap_without_fix_severity_keeps_cfa_out_of_top_three():
+    # Same scenario as test_defender_off_stale_patch_no_backup, but the scorer
+    # gave no fix_severity: the catalogue cap alone ranks CFA as amber.
+    results = [
+        R("backup", "red", "No backup found.", fix_ids=["turn-on-file-history"]),
+        R("patch", "red", "Last update was 70 days ago.", fix_ids=["install-updates"]),
+        R("protection", "red", "Defender is off.", fix_ids=["enable-defender", "enable-cfa"]),
+    ]
+    fixes, top = resolve(_pairs(results))
+    assert top == ["enable-defender", "turn-on-file-history", "install-updates"]
+    assert (fixes[-1]["id"], fixes[-1]["severity"]) == ("enable-cfa", "amber")
+
+
+def test_fix_severity_still_lowers_a_red_capable_fix():
+    # Definitions 5 days old (amber rule) while BitLocker is off (red category).
+    r = R("protection", "red", "BitLocker is off.",
+          fix_ids=["turn-on-bitlocker", "update-defender-definitions"],
+          fix_severity={"update-defender-definitions": Status.AMBER})
+    fixes, _ = resolve(r.fix_pairs())
+    assert {f["id"]: f["severity"] for f in fixes} == {"turn-on-bitlocker": "red",
+                                                      "update-defender-definitions": "amber"}

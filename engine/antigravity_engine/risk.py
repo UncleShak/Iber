@@ -1,6 +1,6 @@
 """Internal risk score and the header summary sentence (s2.6)."""
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 
 from antigravity_engine.scoring.result import RATED, CategoryResult, Status
 
@@ -22,11 +22,19 @@ def risk_score(results: Iterable[CategoryResult]) -> float | None:
     return 100 * sum(WEIGHTS[r.id] * POINTS[r.status] for r in rated) / denominator
 
 
-def summary(results: Iterable[CategoryResult]) -> str:
+def summary(results: Iterable[CategoryResult], fixes: Sequence[dict]) -> str:
+    """Header sentence (s2.6). fixes is the resolved fixes[] from scoring.fixes.
+
+    "{n} things to tighten up": n is the number of amber fixes, so the headline
+    matches the fix cards below it; if no amber result attached a fix, n falls
+    back to the number of amber categories (D2).
+    """
     results = list(results)
     score = risk_score(results)
     reds = sum(r.status == Status.RED for r in results)
-    ambers = sum(r.status == Status.AMBER for r in results)
+    ambers = sum(f["severity"] == Status.AMBER for f in fixes) or sum(
+        r.status == Status.AMBER for r in results
+    )
 
     if score is None:
         text = NOTHING_RATED

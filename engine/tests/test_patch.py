@@ -5,7 +5,8 @@ pending reboot. Baseline: win11 min build 22631, Windows 10 EOS 2025-10-14."""
 import pytest
 
 from antigravity_engine.scoring import patch
-from antigravity_engine.scoring.result import MAX_EXPLANATION, Status
+from antigravity_engine.scoring.fixes import resolve
+from antigravity_engine.scoring.result import MAX_EXPLANATION
 
 WIN10_SENTENCE = (
     "Windows 10 support ended on 14 Oct 2025 unless you've enrolled in Extended Security Updates."
@@ -170,8 +171,9 @@ def test_windows10_keeps_red_and_marks_plan_fix_amber(make_scan, baseline):
     r = patch.score(s, baseline)
     assert r.status == "red"  # overlay never improves a result
     assert r.fix_ids == ("install-updates", "plan-windows-11")
-    assert dict(r.fix_pairs()) == {"install-updates": Status.RED,
-                                   "plan-windows-11": Status.AMBER}
+    fixes, _ = resolve(r.fix_pairs())
+    assert {f["id"]: f["severity"] for f in fixes} == {"install-updates": "red",
+                                                      "plan-windows-11": "amber"}
     assert WIN10_SENTENCE in r.explanation
 
 

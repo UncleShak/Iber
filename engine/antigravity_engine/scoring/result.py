@@ -6,6 +6,7 @@ CategoryResult.unavailable() / .failed(); the constructor rejects them, so a
 RAG comparison can never produce an unrated status by accident (s2.7 rule 1).
 """
 
+import warnings
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -49,6 +50,14 @@ def worst(statuses) -> Status | None:
     if not rated:
         return None
     return max(rated, key=_SEVERITY_RANK.__getitem__)
+
+
+class ClippedWarning(UserWarning):
+    """Scan-driven text or rows went past a report.schema.json limit and were cut (D3).
+
+    Raised as an error in the test suite (conftest.py), so clipping stays a
+    runtime safety net and never becomes normal output.
+    """
 
 
 def _clip(text: str, limit: int = MAX_EXPLANATION) -> str:
@@ -157,6 +166,7 @@ class CategoryResult:
             self, "fix_severity", {k: Status(v) for k, v in self.fix_severity.items()}
         )
         object.__setattr__(self, "fix_steps", {k: tuple(v) for k, v in self.fix_steps.items()})
+        self._clip_scan_driven()
 
         if self.id not in TITLES:
             raise ValueError(f"unknown category id {self.id!r}")
@@ -164,10 +174,8 @@ class CategoryResult:
             raise ValueError(
                 f"{status} results must be built with CategoryResult.{status}(), not directly"
             )
-        if not self.explanation or len(self.explanation) > MAX_EXPLANATION:
-            raise ValueError(f"{self.id}: explanation must be 1..{MAX_EXPLANATION} chars")
-        if len(self.evidence) > MAX_EVIDENCE:
-            raise ValueError(f"{self.id}: at most {MAX_EVIDENCE} evidence rows")
+        if not self.explanation:
+            raise ValueError(f"{self.id}: explanation must not be empty")
         if status not in (Status.RED, Status.AMBER) and self.fix_ids:
             raise ValueError(f"{self.id}: a {status} category cannot attach fixes")
         for fix_id, sev in self.fix_severity.items():
@@ -182,8 +190,36 @@ class CategoryResult:
                 raise ValueError(f"{self.id}: steps given for unattached fix {fix_id!r}")
             if not 1 <= len(steps) <= MAX_STEPS:
                 raise ValueError(f"{self.id}: fix {fix_id!r} needs 1..{MAX_STEPS} steps")
-            if any(not step or len(step) > MAX_STEP_LEN for step in steps):
-                raise ValueError(f"{self.id}: fix {fix_id!r} steps must be 1..{MAX_STEP_LEN} chars")
+            if any(not step for step in steps):
+                raise ValueError(f"{self.id}: fix {fix_id!r} has an empty step")
+
+    def _clip_scan_driven(self) -> None:
+        """Cut limits that scan data can push past, instead of failing the category (D3).
+
+        Explanation length, evidence row count and step length depend on day
+        counts, program names and how many apps are installed. A real finding
+        with a trimmed sentence beats "Check failed". Logic bugs (fixes on a
+        green result, bad severities) still raise.
+        """
+        if len(self.explanation) > MAX_EXPLANATION:
+            warnings.warn(
+                f"{self.id}: explanation clipped from {len(self.explanation)} chars",
+                ClippedWarning, stacklevel=4,
+            )
+            object.__setattr__(self, "explanation", _clip(self.explanation))
+        if len(self.evidence) > MAX_EVIDENCE:
+            warnings.warn(
+                f"{self.id}: evidence cut from {len(self.evidence)} rows to {MAX_EVIDENCE}",
+                ClippedWarning, stacklevel=4,
+            )
+            object.__setattr__(self, "evidence", self.evidence[:MAX_EVIDENCE])
+        for fix_id, steps in self.fix_steps.items():
+            if any(len(step) > MAX_STEP_LEN for step in steps):
+                warnings.warn(
+                    f"{self.id}: steps for {fix_id!r} clipped to {MAX_STEP_LEN} chars",
+                    ClippedWarning, stacklevel=4,
+                )
+                self.fix_steps[fix_id] = tuple(_clip(step, MAX_STEP_LEN) for step in steps)
 
     @classmethod
     def rated(
