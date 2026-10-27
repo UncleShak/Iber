@@ -54,19 +54,28 @@ def test_r1_failed_passes_through(make_scan):
 # --- R2 ---
 
 
-def test_r2_no_winre_and_no_points_attaches_both_fixes(make_scan):
+def test_r2_no_points_with_restore_on_asks_for_a_restore_point(make_scan):
+    # D9: System Restore is already on, so don't tell the owner to turn it on.
     r = recovery.score(make_scan(_rec(winre_enabled=False, restore_point_count=0,
                                       latest_restore_point=None)))
     assert r.status == "red"
-    assert r.fix_ids == ("enable-winre", "turn-on-system-restore")
-    assert r.fix_pairs() == [("enable-winre", Status.RED), ("turn-on-system-restore", Status.RED)]
+    assert r.fix_ids == ("enable-winre", "create-restore-point")
+    assert r.fix_pairs() == [("enable-winre", Status.RED), ("create-restore-point", Status.RED)]
     assert _row(r, "Windows recovery tools").status == Status.RED
 
 
 def test_r2_no_winre_and_restore_off_is_red(make_scan):
     r = recovery.score(make_scan(_rec(winre_enabled=False, system_restore_enabled=False)))
     assert r.status == "red"
+    assert r.fix_ids == ("enable-winre", "turn-on-system-restore")
     assert _row(r, "System Restore").status == Status.RED
+
+
+def test_r2_restore_unknown_and_no_points_keeps_turn_on_fix(make_scan):
+    r = recovery.score(make_scan(_rec(winre_enabled=False, system_restore_enabled=None,
+                                      restore_point_count=0, latest_restore_point=None)))
+    assert r.status == "red"
+    assert r.fix_ids == ("enable-winre", "turn-on-system-restore")
 
 
 # --- R3 ---

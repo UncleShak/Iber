@@ -19,10 +19,10 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 | D5 | generated_at uses the wall clock | Low | Phase 7 / s2.14 work | OPEN |
 | D6 | Em dash written as an escape | Low | Any time | OPEN |
 | D7 | Software rule evaluation order | High | Phase 5 | DECIDED 2026-10-28 (phase-5 prompt) |
-| D8 | Run-specific fix steps | Medium | Phase 7 (CLI) | OPEN |
-| D9 | R2 fix when System Restore is on | Low | Any time | OPEN |
+| D8 | Run-specific fix steps | Medium | Phase 7 (CLI) | DECIDED 2026-10-28 (Tshedi) |
+| D9 | R2 fix when System Restore is on | Low | Any time | CHANGED 2026-10-28 (Tshedi) |
 | D10 | Healthy fixture scores software red | High | Phase 10 | CHANGED 2026-10-28 (Tshedi) |
-| D11 | S7 amber has no fix (RPT-03) | Medium | Phase 10 | OPEN |
+| D11 | S7 amber has no fix (RPT-03) | Medium | Phase 10 | CHANGED 2026-10-28 (Tshedi) |
 
 ---
 
@@ -197,6 +197,12 @@ Test: `test_s6_is_checked_before_s5`.
 
 Logged: 2026-10-28, phase 5.
 
+**Status.** DECIDED 2026-10-28 by Tshedi: keep `fix_steps`. Phase 7 must add
+an end-to-end test that an outdated app's name appears in the
+`update-outdated-apps` steps in report.json, so a missed hand-off to
+`resolve()` fails a test instead of silently falling back to catalogue text.
+Noted on the phase 7 gate in PLAN.md.
+
 **Gap.** s2.5.3 says the `update-outdated-apps` steps list the outdated app
 names, but s2.9 fixes are a static catalogue and `resolve()` copied its steps.
 
@@ -220,6 +226,11 @@ ever supplied steps for the same fix id, a merge rule would be needed.
 ## D9. R2 fix when System Restore is on
 
 Logged: 2026-10-28, phase 5.
+
+**Status.** CHANGED 2026-10-28 by Tshedi: when `system_restore_enabled` is
+true, R2 attaches `enable-winre` and `create-restore-point`; when it is false
+or unknown, `enable-winre` and `turn-on-system-restore` as in s2.5.5. The
+category stays red either way. Tests: `test_r2_*` in test_recovery.py.
 
 **Gap.** s2.5.5 R2 fires on WinRE off and (System Restore off **or** no
 restore points) and always attaches `turn-on-system-restore`. When System
@@ -273,6 +284,11 @@ outside Brick A (CLAUDE.md: don't edit shared/fixtures unasked).
 ## D11. S7 amber has no fix (RPT-03)
 
 Logged: 2026-10-28, phase 5.
+
+**Status.** CHANGED 2026-10-28 by Tshedi: option "add a catalogue fix". New
+fix `rescan-installed-apps` (software, amber, 5 min, no admin: restart, scan
+again, ask IT helper if still empty) is attached by S7. It is an addition
+beyond the s2.9 table; `test_ranking.py` SPEC_TABLE lists it.
 
 **Gap.** s2.5.3 S7 (empty installed list) is amber with no fix id, but
 RPT-03 (s7.6) requires every red/amber category to have a fix.

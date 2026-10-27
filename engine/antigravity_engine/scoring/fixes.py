@@ -208,6 +208,18 @@ _FIXES = (
         ),
         20, False,
     ),
+    # Not in the s2.9 table: attached by S7 so an amber finding always has a fix (D11).
+    Fix(
+        "rescan-installed-apps", "software",
+        "Run the scan again to check your programs",
+        "We couldn't see which programs are installed, so outdated ones may have been missed.",
+        (
+            "Restart the PC.",
+            "Run the scan again.",
+            "If the programs list is still empty, ask your IT helper to check the PC.",
+        ),
+        5, False,
+    ),
     # --- recovery ---
     Fix(
         "enable-winre", "recovery",

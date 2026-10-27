@@ -25,6 +25,8 @@ from antigravity_engine.scoring.result import (
 
 CATEGORY = "software"
 FIX_ID = "update-outdated-apps"
+# S7 fix (D11): RPT-03 needs every amber finding to carry a fix.
+RESCAN_FIX_ID = "rescan-installed-apps"
 MAX_OUTDATED_ROWS = 6
 MAX_NAMED_IN_STEPS = 4
 MAX_NAMED_IN_EXPLANATION = 2
@@ -137,6 +139,7 @@ def score(scan: ScanModel, ctx: Baseline) -> CategoryResult:
             CATEGORY, Status.AMBER,
             "We couldn't read the installed-apps list, so outdated programs weren't checked.",
             [EvidenceRow("Installed programs", "None found", Status.AMBER)],
+            [RESCAN_FIX_ID],
         )
 
     groups: dict[str, list[InstalledApp]] = {}

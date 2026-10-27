@@ -79,13 +79,17 @@ def score(scan: ScanModel, ctx: Baseline | None = None) -> CategoryResult:
                 Status.AMBER if old else Status.GREEN,
             ))
 
-    # R2
+    # R2. When System Restore is already on (only the points are missing),
+    # ask for a restore point instead of "turn on System Restore" (D9).
     if r2:
+        restore_fix = (
+            "create-restore-point" if r.system_restore_enabled else "turn-on-system-restore"
+        )
         return CategoryResult.rated(
             CATEGORY, Status.RED,
             "If Windows stopped starting, this PC has no recovery tools and no restore point "
             "to roll back to.",
-            rows, ["enable-winre", "turn-on-system-restore"],
+            rows, ["enable-winre", restore_fix],
         )
     # R3
     if winre_off:

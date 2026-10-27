@@ -99,10 +99,12 @@ def test_s1_failed_wins_over_outdated_apps(make_scan, baseline):
 # --- S7 ---
 
 
-def test_s7_empty_list_explanation_and_no_fix(make_scan, baseline):
+def test_s7_empty_list_explanation_and_rescan_fix(make_scan, baseline):
+    # D11: amber must carry a fix (RPT-03), so S7 attaches rescan-installed-apps.
     r = software.score(_with(make_scan, []), baseline)
     assert r.explanation.startswith("We couldn't read the installed-apps list")
-    assert r.fix_ids == ()
+    assert r.fix_pairs() == [("rescan-installed-apps", Status.AMBER)]
+    assert r.fix_steps == {}
     assert any(row.status == Status.AMBER for row in r.evidence)
 
 

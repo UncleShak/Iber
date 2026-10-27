@@ -23,6 +23,8 @@ SPEC_TABLE = {
     "restart-to-finish-updates": ("patch", 10, False),
     "plan-windows-11": ("patch", 60, True),
     "update-outdated-apps": ("software", 20, False),
+    # Added beyond s2.9 by decision D11 (S7 empty installed list).
+    "rescan-installed-apps": ("software", 5, False),
     "enable-winre": ("recovery", 10, True),
     "turn-on-system-restore": ("recovery", 5, True),
     "create-restore-point": ("recovery", 5, True),
