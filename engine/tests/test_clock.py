@@ -60,3 +60,11 @@ def test_days_between_mixes_date_and_datetime():
 )
 def test_fmt_date(value, expected):
     assert clock.fmt_date(value) == expected
+
+
+@pytest.mark.parametrize(
+    ("days", "expected"),
+    [(-2, "today"), (0, "today"), (1, "1 day ago"), (9, "9 days ago")],
+)
+def test_fmt_age(days, expected):
+    assert clock.fmt_age(days) == expected

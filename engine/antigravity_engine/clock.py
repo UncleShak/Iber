@@ -35,3 +35,10 @@ def fmt_date(d: date | datetime) -> str:
     """Report display format, e.g. "13 Nov 2026"."""
     d = _utc_date(d)
     return f"{d.day} {_MONTHS[d.month - 1]} {d.year}"
+
+
+def fmt_age(days: int) -> str:
+    """Evidence phrase for an age in days: "today", "1 day ago", "9 days ago"."""
+    if days <= 0:
+        return "today"
+    return "1 day ago" if days == 1 else f"{days} days ago"

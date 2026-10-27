@@ -52,12 +52,15 @@ def _clip(text: str, limit: int = MAX_EXPLANATION) -> str:
     return text if len(text) <= limit else text[: limit - 3] + "..."
 
 
+# Evidence value for a field left null because the scan wasn't elevated (s0.8, s2.5.1).
+NEEDS_ADMIN = "Not checked \u2014 needs admin"
+
 # Raw collector error text (s3.4) -> (evidence value, category explanation).
 # Matched case-insensitively by substring, first match wins.
 _ERROR_TABLE = (
     (
         "administrator",
-        "Not checked \u2014 needs admin",
+        NEEDS_ADMIN,
         "Not checked because it needs administrator rights. Run as administrator for a full check.",
     ),
     (

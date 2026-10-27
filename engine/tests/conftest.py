@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from antigravity_engine.parser import parse_dict
+from antigravity_engine.baseline import load_baseline
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / "shared" / "fixtures"
@@ -26,21 +27,29 @@ def healthy_raw() -> dict:
 
 
 @pytest.fixture
+def make_scan(healthy_raw):
+    """make_scan({"patch": {"days_since_latest_hotfix": 70}}) -> ScanModel"""
+
+    def _make(patch: dict | None = None):
+        return parse_dict(_deep_merge(healthy_raw, patch or {}))
+
+    return _make
+
+
+@pytest.fixture(scope="session")
+def baseline():
+    return load_baseline(ROOT / "baseline" / "software-baseline.json")
+
+
+# --- helpers beyond s2.10, used by the phase 1-3 tests ---
+
+
+@pytest.fixture
 def make_raw(healthy_raw):
     """make_raw({"patch": {"hotfixes": {}}}) -> dict (healthy fixture with overrides)"""
 
     def _make(patch: dict | None = None) -> dict:
         return _deep_merge(healthy_raw, patch or {})
-
-    return _make
-
-
-@pytest.fixture
-def make_scan(make_raw):
-    """make_scan({"patch": {"days_since_latest_hotfix": 70}}) -> ScanModel"""
-
-    def _make(patch: dict | None = None):
-        return parse_dict(make_raw(patch))
 
     return _make
 
