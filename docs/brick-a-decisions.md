@@ -28,7 +28,7 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 
 ## D1. Per-fix severity
 
-**Status.** CHANGED 2026-10-28 by Tshedi (first DECIDED as is the same day).
+**Status.** CHANGED 2026-10-28 by Tshedi in commit 6a9e6c3 (first DECIDED as is the same day).
 Each catalogue `Fix` now has `max_severity` taken from the s2.9 severity
 column: amber-only fixes (encrypt-device-home, enable-tamper-protection,
 enable-cfa, enable-asr-rules, run-backup-now, verify-backup-agent,
@@ -72,7 +72,7 @@ attaches fixes of mixed severity.
 
 ## D2. "n things to tighten up" count
 
-**Status.** CHANGED 2026-10-28 by Tshedi (first DECIDED as is the same day).
+**Status.** CHANGED 2026-10-28 by Tshedi in commit 6a9e6c3 (first DECIDED as is the same day).
 n = number of amber fixes in the resolved `fixes[]`, so the headline matches
 the fix cards; if no amber result attached a fix, n falls back to the number
 of amber categories. `risk.summary(results, fixes)` now takes the resolved
@@ -100,7 +100,7 @@ category. It changes the headline the owner-manager reads first.
 
 ## D3. Strict CategoryResult guards
 
-**Status.** CHANGED 2026-10-28 by Tshedi (first DECIDED as is the same day).
+**Status.** CHANGED 2026-10-28 by Tshedi in commit 6a9e6c3 (first DECIDED as is the same day).
 Scan-driven limits now clip instead of raising: an explanation over 200
 chars is cut with "...", evidence past 8 rows keeps the first 8, and a
 `fix_steps` step over 160 chars is cut with "..." (it carries app names, D8).
