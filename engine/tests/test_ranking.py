@@ -16,6 +16,8 @@ SPEC_TABLE = {
     "enable-tamper-protection": ("protection", 3, True, "amber"),
     "enable-cfa": ("protection", 5, True, "amber"),
     "enable-asr-rules": ("protection", 15, True, "amber"),
+    # Added beyond s2.9 by decision D12 (BitLocker still encrypting).
+    "finish-bitlocker-encryption": ("protection", 5, False, "amber"),
     "turn-on-file-history": ("backup", 15, False, "red"),
     "run-backup-now": ("backup", 10, False, "amber"),
     "verify-backup-agent": ("backup", 10, False, "amber"),

@@ -126,6 +126,19 @@ _FIXES = (
         ),
         15, True, max_severity=Status.AMBER,
     ),
+    # Not in the s2.9 table: attached by the BitLocker "still encrypting" row so
+    # an amber finding always has a fix (D12).
+    Fix(
+        "finish-bitlocker-encryption", "protection",
+        "Let BitLocker finish encrypting the drive",
+        "Until encryption finishes, part of the drive can still be read if the PC is stolen.",
+        (
+            "Keep the PC switched on and plugged in.",
+            "Click Start, type BitLocker and open Manage BitLocker to see the progress.",
+            "When it shows BitLocker on with no progress bar, run the scan again.",
+        ),
+        5, False, max_severity=Status.AMBER,
+    ),
     # --- backup ---
     Fix(
         "turn-on-file-history", "backup",

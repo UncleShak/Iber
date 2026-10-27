@@ -23,6 +23,9 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 | D9 | R2 fix when System Restore is on | Low | Any time | CHANGED 2026-10-28 (Tshedi) |
 | D10 | Healthy fixture scores software red | High | Phase 10 | CHANGED 2026-10-28 (Tshedi) |
 | D11 | S7 amber has no fix (RPT-03) | Medium | Phase 10 | CHANGED 2026-10-28 (Tshedi) |
+| D12 | BitLocker "still encrypting" has no fix (RPT-03) | Medium | Phase 10 | OPEN |
+| D13 | When CFA/ASR are excluded; third-party AV always green | High | Phase 6 | OPEN |
+| D14 | Null fields and all-grey protection category | Medium | Phase 6 | OPEN |
 
 ---
 
@@ -330,3 +333,93 @@ row. No current fixture has an empty list, so phase 10 won't trip on it.
 - Keep as is and exempt S7 in `test_integrity.py`.
 - Add a catalogue fix such as "re-run the scan as administrator".
 
+---
+
+## D12. BitLocker "still encrypting" has no fix (RPT-03)
+
+Logged: 2026-10-28, phase 6.
+
+**Status.** OPEN. Code follows the D11 precedent (add a catalogue fix).
+
+**Gap.** s2.5.4 rates `os_volume_protection == "on"` with
+`os_volume_encryption_pct < 100` amber with no fix id ("still encrypting;
+leave the PC on"). If that is the only finding, the category is amber with
+no fix, which breaks RPT-03 (s7.6) - the same conflict as D11.
+
+**Solution in code.** New fix `finish-bitlocker-encryption` (protection,
+amber cap, 5 min, no admin: keep the PC on and plugged in, watch progress in
+Manage BitLocker, scan again). Attached only by the encrypting row.
+Files: `scoring/fixes.py`, `scoring/protection.py`; `test_ranking.py`
+SPEC_TABLE lists it.
+Test: `test_bitlocker_still_encrypting_is_amber_with_finish_fix`.
+
+**Alternatives.**
+- Keep the fix (current).
+- Follow s2.5.4 literally (amber, no fix) and exempt it in `test_integrity.py`.
+- Rate the encrypting row green with an explanatory value (no RPT-03 issue,
+  but hides a real, temporary exposure).
+
+---
+
+## D13. When CFA/ASR are excluded; third-party AV always green
+
+Logged: 2026-10-28, phase 6.
+
+**Status.** OPEN.
+
+**Gap.** s2.5.4 says "If Defender is off, the ASR and CFA rows ... are
+excluded from rating" without defining "off". Its Defender table only greens
+a third-party AV when `antivirus_enabled == false`, but s3.6 says a passive
+Defender (third-party AV present) is "Not penalised" and its CFA/ASR are
+"Excluded from rating" whenever `third_party_av` is set. A passive Defender
+can report `antivirus_enabled: true` with real-time off and stale
+signatures, which the literal table would rate red.
+
+**Solution in code.** (1) `third_party_av` set -> Defender row green
+"Protected by <name>", checked before every other Defender condition.
+(2) CFA and ASR are excluded (neutral row "Only works when Microsoft
+Defender is your antivirus", no status, no fix) when the Defender section is
+ok and any of: `third_party_av` set, `antivirus_enabled` false,
+`realtime_enabled` false. Both features need Defender real-time protection
+to act. If the Defender section itself is unavailable/failed, CFA/ASR are
+rated normally (they are read separately, s3.5).
+Tests: `test_third_party_av_wins_over_stale_signatures_and_tamper_off`,
+`test_cfa_and_asr_excluded_when_defender_not_primary`,
+`test_defender_section_failed_is_grey_and_cfa_asr_still_rated`.
+
+**Alternatives.**
+- Exclude only on `antivirus_enabled` false / `third_party_av` set, so a
+  real-time-off PC also gets CFA/ASR fixes (more fixes, red Defender row
+  already covers it).
+- Apply the Defender table literally and only use `third_party_av` when
+  `antivirus_enabled` is false.
+
+---
+
+## D14. Null fields and all-grey protection category
+
+Logged: 2026-10-28, phase 6.
+
+**Status.** OPEN.
+
+**Gap.** s2.5.4 covers section `unavailable`/`failed` but not null fields
+inside an `ok` section, nor a category where no sub-check can be rated.
+
+**Solution in code.** Conditions only fire on known values; a null never
+makes a row worse (same rule as recovery, s2.5.5). A row with no rule fired
+and its deciding field null is grey ("Not checked", or "Not checked - needs
+admin" when not elevated): Defender when `antivirus_enabled` or
+`realtime_enabled` is null, BitLocker when `os_volume_protection` is null,
+CFA when `mode` is null. A green category with grey rows reads "The
+protections we could check are all on." plus "Run as administrator for a
+full check." when not elevated. If no row is rated: `failed` when all four
+sections failed, else `unavailable` with the four grey rows as evidence.
+Tests: `test_defender_null_running_state_is_grey_not_red`,
+`test_bitlocker_ok_with_null_protection_is_grey`,
+`test_all_sections_unavailable_is_unavailable_with_grey_rows`,
+`test_all_sections_failed_is_failed`.
+
+**Alternatives.**
+- Treat an all-grey category as green with the admin sentence (like R7).
+- Treat null `antivirus_enabled` as off (red) - rejected: penalises a
+  collector gap.
