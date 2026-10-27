@@ -1,4 +1,0 @@
-docs/security-evidence/
-tools/demo-tokens.txt
-fallback/*
-!fallback/README.md
