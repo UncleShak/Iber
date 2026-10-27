@@ -23,6 +23,13 @@ def schema_path(name: str) -> Path:
     return resource(f"contract/{name}")
 
 
+def baseline_schema_path() -> Path:
+    """Frozen: bundled under contract/ by engine.spec. Dev: <repo>/baseline/."""
+    if _frozen():
+        return schema_path("software-baseline.schema.json")
+    return _REPO_ROOT / "baseline" / "software-baseline.schema.json"
+
+
 def default_baseline_path() -> Path:
     """Frozen: <exe_dir>/../baseline/. Dev: <repo>/baseline/."""
     if _frozen():
