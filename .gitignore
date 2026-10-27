@@ -38,8 +38,7 @@ desktop/src/main/resource-hashes.json
 # Local secrets, just in case
 *.env
 .antigravity-private.pem
-.DS_Store
-docs/security-evidence/
-tools/demo-tokens.txt
-fallback/*
-!fallback/README.md
+
+# Personal Claude Code / Academy setup (Shakir only)
+CLAUDE.md
+.claude/
