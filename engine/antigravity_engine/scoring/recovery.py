@@ -5,7 +5,9 @@ leaves winre_enabled and restore_point_count null (s3.5). R2-R5 only fire on
 known values; a null field is a grey row and never makes the category worse.
 R7 (both admin fields null, System Restore on) is green with grey rows and
 the "Run as administrator" sentence. The same green-with-grey-rows result is
-used for any other mix of nulls that R2-R5 leave unrated.
+used for any other mix of nulls that R2-R5 leave unrated, as long as at least
+one field is known. If every field is null the category is unavailable with
+the grey rows as evidence, never green on no evidence (D15, as D14).
 """
 
 from antigravity_engine import clock
@@ -22,6 +24,8 @@ CATEGORY = "recovery"
 RESTORE_POINT_MAX_DAYS = 30
 
 _ADMIN_HINT = " Run as administrator for a full check."
+# Collector-style reason so plain_explanation() gives the admin sentence (D15).
+_ADMIN_REASON = "Requires administrator rights"
 
 
 def _grey(label: str, is_admin: bool) -> EvidenceRow:
@@ -120,6 +124,12 @@ def score(scan: ScanModel, ctx: Baseline | None = None) -> CategoryResult:
             "a lot of changes.",
             rows, ["create-restore-point"],
         )
+
+    # D15: nothing known at all is unavailable, not green (same as D14).
+    fields = (r.winre_enabled, r.system_restore_enabled, r.restore_point_count,
+              r.latest_restore_point)
+    if all(f is None for f in fields):
+        return CategoryResult.unavailable(CATEGORY, None if is_admin else _ADMIN_REASON, rows)
 
     unknown = any(row.status == Status.UNAVAILABLE for row in rows)
     # R6

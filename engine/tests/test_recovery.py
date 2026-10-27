@@ -175,3 +175,43 @@ def test_r7_does_not_apply_when_restore_is_off(make_scan):
                                 "restore_point_count": None, "latest_restore_point": None}})
     r = recovery.score(s)
     assert r.status == "amber" and r.fix_ids == ("turn-on-system-restore",)
+
+
+# --- D15: every field null ---
+
+_ALL_NULL = {"winre_enabled": None, "system_restore_enabled": None,
+             "restore_point_count": None, "latest_restore_point": None}
+
+
+def test_all_null_non_admin_is_unavailable_with_grey_rows(make_scan):
+    r = recovery.score(make_scan({"host": {"is_admin": False}, "recovery": _ALL_NULL}))
+    assert r.status == "unavailable"
+    assert r.fix_ids == ()
+    assert ADMIN_SENTENCE in r.explanation
+    assert [row.label for row in r.evidence] == [
+        "Windows recovery tools", "System Restore", "Restore points", "Newest restore point",
+    ]
+    assert all(row.status == Status.UNAVAILABLE for row in r.evidence)
+    assert _row(r, "System Restore").value == NEEDS_ADMIN
+
+
+def test_all_null_elevated_is_unavailable_without_admin_sentence(make_scan):
+    r = recovery.score(make_scan(_rec(**_ALL_NULL)))
+    assert r.status == "unavailable"
+    assert ADMIN_SENTENCE not in r.explanation
+    assert _row(r, "Windows recovery tools").value == "Not checked"
+
+
+def test_one_known_field_keeps_null_mix_green(make_scan):
+    # Only System Restore unknown: WinRE on and a fresh point are real evidence.
+    r = recovery.score(make_scan({"host": {"is_admin": False},
+                                  "recovery": {"system_restore_enabled": None}}))
+    assert r.status == "green"
+    assert _row(r, "System Restore").status == Status.UNAVAILABLE
+    assert ADMIN_SENTENCE in r.explanation
+
+
+def test_points_counted_but_newest_date_null_is_grey_and_green(make_scan):
+    r = recovery.score(make_scan(_rec(restore_point_count=2, latest_restore_point=None)))
+    assert r.status == "green"
+    assert _row(r, "Newest restore point").status == Status.UNAVAILABLE

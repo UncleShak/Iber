@@ -26,6 +26,7 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 | D12 | BitLocker "still encrypting" has no fix (RPT-03) | Medium | Phase 10 | DECIDED 2026-10-28 (Tshedi) |
 | D13 | When CFA/ASR are excluded; third-party AV always green | High | Phase 6 | DECIDED 2026-10-28 (Tshedi) |
 | D14 | Null fields and all-grey protection category | Medium | Phase 6 | DECIDED 2026-10-28 (Tshedi) |
+| D15 | All-null recovery section rated green | Medium | Any time | CHANGED 2026-10-28 (Tshedi) |
 
 ---
 
@@ -423,3 +424,38 @@ Tests: `test_defender_null_running_state_is_grey_not_red`,
 - Treat an all-grey category as green with the admin sentence (like R7).
 - Treat null `antivirus_enabled` as off (red) - rejected: penalises a
   collector gap.
+
+---
+
+## D15. All-null recovery section rated green
+
+Logged: 2026-10-28, scoring review.
+
+**Status.** CHANGED 2026-10-28 by Tshedi: option 2. When `winre_enabled`,
+`system_restore_enabled`, `restore_point_count` and `latest_restore_point`
+are all null in an ok section, recovery is `unavailable` with the four grey
+rows as evidence (same rule as D14 for protection). The explanation is the
+admin sentence when the scan was not elevated, else "This couldn't be
+checked on this PC." Any mix with at least one known field is unchanged:
+green with grey rows when R2-R5 don't fire.
+File: `engine/antigravity_engine/scoring/recovery.py` (`score`).
+Tests: `test_all_null_non_admin_is_unavailable_with_grey_rows`,
+`test_all_null_elevated_is_unavailable_without_admin_sentence`,
+`test_one_known_field_keeps_null_mix_green`,
+`test_points_counted_but_newest_date_null_is_grey_and_green`
+(test_recovery.py).
+
+**Gap.** s2.5.5 R7 covers only `winre_enabled` and `restore_point_count`
+null with `system_restore_enabled == true`. Other null mixes are unstated.
+
+**Solution in code (before).** Any null mix that R2-R5 left unrated was
+green with grey rows, including every field null: a green tile with no
+evidence behind it. A green category also counts toward the risk score
+(weight 10, 0 points), which can lower the headline to "good shape";
+`unavailable` is removed from both sides of the s2.6 formula.
+
+**Alternatives.**
+- Keep green with grey rows for every null mix.
+- Unavailable only when nothing is known (chosen).
+- Follow R7 literally: green only when `system_restore_enabled == true`,
+  unavailable for every other unrated null mix.
