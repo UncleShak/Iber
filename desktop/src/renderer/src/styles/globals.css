@@ -1,0 +1,22 @@
+@import "tailwindcss";
+@source "../";
+
+/* RAG tokens for the app */
+@theme {
+  --color-rag-red: #b42318;
+  --color-rag-red-bg: #fef3f2;
+  --color-rag-amber: #b54708;
+  --color-rag-amber-bg: #fffaeb;
+  --color-rag-green: #067647;
+  --color-rag-green-bg: #ecfdf3;
+  --color-rag-grey: #475467;
+  --color-rag-grey-bg: #f2f4f7;
+  --font-sans: "Segoe UI", system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #ffffff;
+  color: #111827;
+}
