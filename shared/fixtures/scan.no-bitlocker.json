@@ -7,7 +7,7 @@
   "host": { "hostname_hash": "sha256:2222", "os_caption": "Microsoft Windows 11 Pro", "os_build": "22631", "os_edition": "Professional", "is_admin": true, "ps_version": "5.1.22621.4391" },
   "backup": { "status": "ok", "error": null, "file_history_enabled": true, "file_history_last_backup": "2026-11-13T22:00:00Z", "windows_backup_last_success": null, "onedrive_kfm_folders": ["Desktop", "Documents", "Pictures"], "shadow_copy_count": 3, "third_party_agents": [] },
   "patch": { "status": "ok", "error": null, "hotfix_count": 14, "latest_hotfix_installed_on": "2026-11-05", "days_since_latest_hotfix": 9, "hotfixes": [ { "kb": "KB5044285", "installed_on": "2026-11-05" } ], "pending_reboot": false },
-  "software": { "status": "ok", "error": null, "installed": [ { "name": "Google Chrome", "version": "131.0.6778.86", "publisher": "Google LLC" } ] },
+  "software": { "status": "ok", "error": null, "installed": [ { "name": "Google Chrome", "version": "142.0.7444.175", "publisher": "Google LLC" } ] },
   "protection": {
     "bitlocker": { "status": "ok", "error": null, "os_volume_protection": "off", "os_volume_encryption_pct": 0, "encryption_method": null },
     "defender": { "status": "ok", "error": null, "antivirus_enabled": true, "realtime_enabled": true, "tamper_protected": true, "signature_age_days": 0, "third_party_av": null },

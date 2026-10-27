@@ -21,7 +21,7 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 | D7 | Software rule evaluation order | High | Phase 5 | DECIDED 2026-10-28 (phase-5 prompt) |
 | D8 | Run-specific fix steps | Medium | Phase 7 (CLI) | OPEN |
 | D9 | R2 fix when System Restore is on | Low | Any time | OPEN |
-| D10 | Healthy fixture scores software red | High | Phase 10 | OPEN |
+| D10 | Healthy fixture scores software red | High | Phase 10 | CHANGED 2026-10-28 (Tshedi) |
 | D11 | S7 amber has no fix (RPT-03) | Medium | Phase 10 | OPEN |
 
 ---
@@ -241,6 +241,14 @@ File: `engine/antigravity_engine/scoring/recovery.py`.
 ## D10. Healthy fixture scores software red
 
 Logged: 2026-10-28, phase 5.
+
+**Status.** CHANGED 2026-10-28 by Tshedi: option 1, fixture versions bumped.
+healthy, home-edition, no-bitlocker and xss now carry each app at exactly its
+baseline `min_safe_version` (Chrome 142.0.7444.175, Acrobat Reader
+25.001.20937, 7-Zip 25.00), so software scores green. defender-off keeps
+Chrome 118.0.5993.118 (deliberately outdated). The s0.7 examples in the
+manual still show the old versions. If the baseline minimums are raised,
+these fixtures must be bumped again.
 
 **Gap.** s0.7 says `scan.healthy.json` is "all green", but its apps
 (Chrome 131.0.6778.86, Acrobat Reader 24.4.20220, 7-Zip 24.08) are below
