@@ -35,6 +35,9 @@ TITLES = {
 _SEVERITY_RANK = {Status.GREEN: 0, Status.AMBER: 1, Status.RED: 2}
 MAX_EXPLANATION = 200
 MAX_EVIDENCE = 8
+# report.schema.json fixes[].steps limits.
+MAX_STEPS = 5
+MAX_STEP_LEN = 160
 
 # Only the factory classmethods hold this; passing it is the one way past the guard.
 _UNRATED_TOKEN = object()
@@ -140,6 +143,9 @@ class CategoryResult:
     # Per-fix severity when it differs from the category status (e.g. an amber
     # CFA fix inside a red protection category). Missing ids use self.status.
     fix_severity: Mapping[str, Status] = field(default_factory=dict)
+    # Run-specific steps replacing a catalogue fix's steps (e.g. naming the
+    # outdated apps). Internal, like fix_severity; never written to report.json.
+    fix_steps: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     _token: object = field(default=None, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -150,6 +156,7 @@ class CategoryResult:
         object.__setattr__(
             self, "fix_severity", {k: Status(v) for k, v in self.fix_severity.items()}
         )
+        object.__setattr__(self, "fix_steps", {k: tuple(v) for k, v in self.fix_steps.items()})
 
         if self.id not in TITLES:
             raise ValueError(f"unknown category id {self.id!r}")
@@ -170,6 +177,13 @@ class CategoryResult:
                 raise ValueError(f"{self.id}: fix severity must be red or amber, got {sev}")
             if _SEVERITY_RANK[sev] > _SEVERITY_RANK[status]:
                 raise ValueError(f"{self.id}: fix {fix_id!r} is worse than its category")
+        for fix_id, steps in self.fix_steps.items():
+            if fix_id not in self.fix_ids:
+                raise ValueError(f"{self.id}: steps given for unattached fix {fix_id!r}")
+            if not 1 <= len(steps) <= MAX_STEPS:
+                raise ValueError(f"{self.id}: fix {fix_id!r} needs 1..{MAX_STEPS} steps")
+            if any(not step or len(step) > MAX_STEP_LEN for step in steps):
+                raise ValueError(f"{self.id}: fix {fix_id!r} steps must be 1..{MAX_STEP_LEN} chars")
 
     @classmethod
     def rated(
@@ -180,6 +194,7 @@ class CategoryResult:
         evidence: Sequence[EvidenceRow] = (),
         fix_ids: Sequence[str] = (),
         fix_severity: Mapping[str, Status] | None = None,
+        fix_steps: Mapping[str, Sequence[str]] | None = None,
     ) -> "CategoryResult":
         return cls(
             id=category_id,
@@ -189,6 +204,7 @@ class CategoryResult:
             evidence=tuple(evidence),
             fix_ids=tuple(fix_ids),
             fix_severity=dict(fix_severity or {}),
+            fix_steps=dict(fix_steps or {}),
         )
 
     @classmethod

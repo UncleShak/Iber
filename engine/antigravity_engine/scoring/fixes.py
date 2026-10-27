@@ -3,7 +3,7 @@
 Steps are written for a non-technical owner-manager: 1-5 short items, no jargon.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 from antigravity_engine.scoring.result import Status
@@ -25,14 +25,14 @@ class Fix:
     effort_minutes: int
     needs_admin: bool
 
-    def to_dict(self, severity: Status) -> dict:
+    def to_dict(self, severity: Status, steps: Sequence[str] | None = None) -> dict:
         return {
             "id": self.id,
             "category": self.category,
             "severity": str(severity),
             "title": self.title,
             "why": self.why,
-            "steps": list(self.steps),
+            "steps": list(steps or self.steps),
             "effort_minutes": self.effort_minutes,
             "needs_admin": self.needs_admin,
         }
@@ -258,8 +258,14 @@ def _rank_key(fix_id: str, severity: Status) -> tuple:
     )
 
 
-def resolve(fix_ids_with_severity: Iterable[tuple[str, Status | str]]) -> tuple[list[dict], list[str]]:
+def resolve(
+    fix_ids_with_severity: Iterable[tuple[str, Status | str]],
+    steps: Mapping[str, Sequence[str]] | None = None,
+) -> tuple[list[dict], list[str]]:
     """Merge (fix_id, severity) pairs into ranked fixes[] and top_fixes[] (s0.8).
+
+    steps maps a fix id to run-specific steps (CategoryResult.fix_steps) that
+    replace the catalogue steps; ids not in it keep the catalogue text.
 
     Duplicates collapse to one entry whose severity is the worst attaching rule.
     fixes[] is returned in rank order; top_fixes is its first <= 3 ids.
@@ -277,5 +283,6 @@ def resolve(fix_ids_with_severity: Iterable[tuple[str, Status | str]]) -> tuple[
             merged[fix_id] = sev
 
     ranked = sorted(merged, key=lambda f: _rank_key(f, merged[f]))
-    fixes = [CATALOGUE[f].to_dict(merged[f]) for f in ranked]
+    steps = steps or {}
+    fixes = [CATALOGUE[f].to_dict(merged[f], steps.get(f)) for f in ranked]
     return fixes, ranked[:MAX_TOP]
