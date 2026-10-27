@@ -4,112 +4,114 @@
 
 Personal file: git-ignored, not shared with the team.
 
-## Project in one paragraph
+## 1. Project in one paragraph
 
 Antigravity is a read-only, offline Windows cyber health check for South African SMMEs.
 Pipeline: licence key → `collector.ps1` (PowerShell 5.1) writes `scan.json` →
-`engine.exe` (Python) writes `report.json` + `report.html` + `action-plan.pdf` →
-Electron/React UI shows red/amber/green results. The manual at `docs/manual.md` is the
-source of truth. Cite its section numbers (e.g. "§3.4") instead of pasting its contents.
-If the manual and code disagree, the manual is right until it is updated first.
+`engine.exe` (Python) writes `report.json`, `report.html`, `action-plan.pdf` and `evidence.json` →
+Electron/React UI shows red/amber/green results. A third party can check `evidence.json` with
+`engine.exe --verify`. The manual at `docs/antigravity_manual_v1.1.md` (v1.1) is the source of truth. Cite its
+section numbers (e.g. "§3.4") instead of pasting its contents. If the manual and the code
+disagree, stop and tell me; the manual is updated first, then the code.
 
-## My scope (Brick B — Shakir)
+## 2. My scope (Brick B)
 
-I own and may edit:
-- `collector/**`: collector entry script, `lib/`, `probes/`, `mocks/`, `tests/` (§3)
-- `shared/contract/**` and `shared/fixtures/scan.*.json`: the data contract (§0, Appendix A)
+May edit:
+- `collector/**` (§3)
+- `shared/contract/**` and `shared/fixtures/scan.*.json` (§0, Appendix A, incl. A.3 evidence schema)
 - `shared/license/**`, `tools/issue-license.mjs`, `tools/security/**` (§3.11, §7.2)
-- `desktop/src/main/license/**`: `verify.ts`, `verify.test.ts`, `store.ts` (§3.11)
+- `desktop/src/main/license/**` (§3.11)
 - `installer/contract-check.ps1` (shared with Schwan, §6.3)
+- `docs/briefs/**` (phase briefs, see §5 below)
 
-Do NOT edit other bricks' folders (`engine/`, `baseline/`, `desktop/src/renderer/`,
-the rest of `desktop/src/main/`, `landing/`, `installer/` except contract-check). If a change
-is needed there, stop and tell me who owns it.
+Must NOT edit any other folder. If a change is needed elsewhere, stop and tell me who owns it.
+`shared/contract/` is frozen after 16:00 Day 1; after that, never change it without my explicit
+instruction (all four team members must agree first, §0.10).
 
-Contract rule: `shared/contract/` is frozen after 16:00 Day 1. Any change after that needs
-all four team members to agree first (§0.10). Never change it silently.
+## 3. Phases
 
-## Learning checkpoints: I must understand every line
+Work happens in numbered phases. **Never start a phase until I type `Start Phase N`.**
+Never start the next phase on your own, even if the current one finished early.
 
-Work on ONE work package at a time. Never start the next one without my "continue".
+| Phase | Deliverable | Manual |
+|---|---|---|
+| 0 | Contract: `scan.schema.json`, `evidence.schema.json`, `types.ts`, fixtures incl. `scan.xss.json` | §0.5–§0.7, App. A |
+| 1 | Skeleton: `collector.ps1`, `lib/Common.ps1` (incl. `Read-Ag*` readers), `lib/Allowlist.ps1` | §3.2–§3.4, §3.8 |
+| 2 | Read-only guard: `tests/Test-ReadOnly.ps1` | §3.7 |
+| 3 | Probes A: Host, Protection | §3.5, §3.6 |
+| 4 | Probes B: Patch, Software, Backup, Recovery | §3.5, §3.6 |
+| 5 | Mocks + `tests/Test-Collector.ps1` covering every mock case | §3.10 |
+| 6 | Licence: `verify.ts`, `verify.test.ts`, `store.ts` | §3.11 |
+| 7 | Integration: `-RunId`, `AG-PHASE:` markers, `installer/contract-check.ps1` | §3.3, §4.8, §6.3 |
 
-1. **Before coding.** Explain the plan in plain English: files, functions, manual section,
-   risks. Wait for my approval.
-2. **After coding.** Walk me through the diff function by function, in under 300 words
-   (I will ask for more). Explicitly flag every registry read, cmdlet call, external exe,
-   file write and crypto operation, and say why it is read-only/safe.
-3. **Verification.** Give me the exact commands to run myself (do NOT run them for me) and
-   the expected output. Then ask me 3 questions about failure, non-admin and edge-case
-   behaviour. Wait for my answers and correct me.
-4. **Commit.** Only after I say "verified", commit on `brick/collector` with a
-   conventional message: `feat(collector): ...`, `fix(collector): ...`, `contract: ...`.
-   Then suggest one line for `docs/pitch-notes.md` that captures what I learned.
+If I say `Start Phase N` and an earlier phase isn't finished, say so and wait.
 
-Checkpoint depth:
-- **Full (all 4 steps):** `lib/Common.ps1`, `lib/Allowlist.ps1`, `tests/Test-ReadOnly.ps1`,
-  `probes/Protection.ps1`, `verify.ts`, `contract-check.ps1`.
-- **Light (short walkthrough + I run the test):** the other probes, `Test-Collector.ps1`, `store.ts`.
-- **Mechanical (just give me the test command):** mock files, fixtures, allowlist entries,
-  generated `types.ts`.
+## 4. How every phase runs (test-first)
 
-## Work packages, in order
+1. **Plan (stop and wait).** Plato posts a short plan: files, functions, manual sections,
+   the list of tests that will prove the phase works, and any decision needing my input.
+   Wait for my `Go`.
+2. **Tests first.** Write the tests before any implementation. Run them and show me they
+   FAIL for the right reason (e.g. "function not found", not a typo). Paste the failing output.
+3. **Implement** the smallest code that makes the tests pass. Do not change a test to make it
+   pass unless the test itself is wrong; if so, say why in the brief.
+4. **Review.** Socrates reviews any phase that touches the contract, a probe, `Allowlist.ps1`,
+   `Test-ReadOnly.ps1`, `verify.ts` or `contract-check.ps1`. Every Socrates question gets an answer.
+5. **Gate.** Run ALL tests for this phase AND all earlier phases, plus `Test-ReadOnly.ps1` from
+   Phase 2 onward. The phase ends only when every one passes. If any fail after two fix
+   attempts, stop and tell me; never mark a phase done with a failing or skipped test.
+6. **Brief** (§5), then stop. Do not commit until I reply `Verified`.
+7. **Commit** on `brick/collector` (contract work: `contract/<topic>`), conventional message,
+   e.g. `feat(collector): add Host and Protection probes`. Never push unless I ask.
 
-0. Contract: `scan.schema.json` (Appendix A.1), `types.ts`, fixtures (§0.7) + `scan.xss.json`
-1. Skeleton: `collector.ps1`, `lib/Common.ps1`, `lib/Allowlist.ps1` (§3.2–§3.4, §3.8)
-2. Guard rail: `tests/Test-ReadOnly.ps1` (§3.7)
-3. Probes: Host, Protection, Patch, Software, Backup, Recovery (§3.5, §3.6)
-4. Mocks + `tests/Test-Collector.ps1` (§3.10)
-5. Licence: `verify.ts`, `verify.test.ts`, `store.ts` (§3.11). Can run alongside package 3
-6. Integration: `-RunId`, `AG-PHASE:` markers, `installer/contract-check.ps1` (§3.3, §4.8, §6.3)
+## 5. Phase brief (required after every phase)
 
-## Agent routing (Academy)
+Write it to `docs/briefs/phase-N.md` and post the same text in chat. Plain English, no
+unexplained jargon (explain any technical term in a few words the first time), but technically
+precise. Sections, in this order:
 
-- **Socrates must review** any probe, `Allowlist.ps1`, `Test-ReadOnly.ps1`, `verify.ts` or
-  contract change BEFORE checkpoint 2.
-- Aristotle builds anything needing reasoning (probes, `Common.ps1`, `verify.ts`).
-- Diogenes does fully specified mechanical work (fixtures, mocks, schema transcription).
-- Thales searches the manual and repo.
+1. **What was built.** Each file created or changed, and in 1–3 sentences what it does and why.
+2. **How it works.** The flow in plain steps. For every registry read, cmdlet, external program,
+   file write or crypto operation, say what it touches and why it is safe/read-only.
+3. **Tests written.** A table: test name | what it checks | why it matters.
+4. **Test results.** Pass/fail counts and the key lines of real output (not paraphrased).
+   Include the failing output from step 2 of §4 as proof the tests came first.
+5. **Run it yourself.** Exact commands, each with its working folder, and what I should see
+   if it works and what it means if I see something else.
+6. **Decisions and limits.** Anything assumed, deferred, or not covered, and open questions.
+7. **Pitch line.** One sentence for `docs/pitch-notes.md`.
 
-## Hard safety rules (never break these)
+## 6. Hard safety rules (never break, in code or in commands run on this PC)
 
-The collector is READ-ONLY (§3.7). In code AND when running commands on this machine:
-- Never run or write `Set-*`, `New-*` (except allow-listed `New-Object` COM reads), `Remove-*`,
-  `Add-*`, `Clear-*`, `Enable-*`, `Disable-*`, `Start-*`, `Stop-*`, `Restart-*`, `Install-*`,
-  `Uninstall-*`, `Update-*`, `Register-*`, `Invoke-WebRequest`, `Invoke-RestMethod`.
+- The collector is READ-ONLY (§3.7). Never run or write `Set-*`, `New-*` (except allow-listed
+  `New-Object` COM reads), `Remove-*`, `Add-*`, `Clear-*`, `Enable-*`, `Disable-*`, `Start-*`,
+  `Stop-*`, `Restart-*`, `Install-*`, `Uninstall-*`, `Update-*`, `Register-*`,
+  `Invoke-WebRequest`, `Invoke-RestMethod`.
 - Never use `Win32_Product`, `vssadmin`, `wbadmin start`, `manage-bde`, `reagentc /enable|/disable`,
-  `Checkpoint-Computer`, `bcdedit`. The only external exe allowed is `reagentc.exe /info`.
+  `Checkpoint-Computer`, `bcdedit`. Only external exe allowed: `reagentc.exe /info`.
 - Never change Defender, BitLocker, services, registry, execution policy or firewall settings,
-  even "to test". I make any test state changes by hand (§3.9).
+  not even "to test". Use mocks (§3.10); I make real state changes by hand.
 - No network calls, no `-EncodedCommand`, no `-WindowStyle Hidden`.
 - POPIA: output never contains usernames, file paths, IPs, MACs, serial numbers or raw
-  hostnames. Error strings use fixed messages with no paths (§3.4 rule 4).
+  hostnames. Error messages are fixed text with no paths (§3.4 rule 4).
 - Never read, print, copy or commit `%USERPROFILE%\.antigravity-private.pem`. Never run
-  `node tools/issue-license.mjs keygen`: it would overwrite the real signing key.
-- Never commit `tools/demo-tokens.txt`, real scan output, `.offline/` or `node_modules/`.
+  `node tools/issue-license.mjs keygen`.
+- Never commit `tools/demo-tokens.txt`, real scan output, `out/`, `.offline/` or `node_modules/`.
+- No new dependencies of any kind without asking me first.
 
-## PowerShell 5.1 rules (§1.4, §3.8)
+## 7. PowerShell 5.1 rules (§1.4, §3.8)
 
 - Always `powershell.exe` (5.1), never `pwsh`. Save `.ps1` files as UTF-8 with BOM.
 - `ConvertTo-Json -InputObject $x -Depth 8`; wrap arrays in `@()`; dates via `ConvertTo-IsoUtc`;
-  write JSON with `[IO.File]::WriteAllText(..., (New-Object Text.UTF8Encoding $false))` (no BOM).
-- Probes call `Read-Ag*` readers in `Common.ps1`, never system cmdlets directly for scored values,
-  so mocks can override them (§3.10).
-- Every probe goes through `Invoke-Probe`: known precondition → `[AgUnavailable]` → `unavailable`;
-  anything else → `failed`. Admin-only fields inside a readable section → `$null`, section stays `ok`.
+  write JSON with `[IO.File]::WriteAllText(..., (New-Object Text.UTF8Encoding $false))`.
+- Probes call `Read-Ag*` readers, never system cmdlets directly for scored values (§3.10).
+- Every probe goes through `Invoke-Probe`: known precondition → `unavailable`; anything else →
+  `failed`. Admin-only fields inside a readable section → `$null`, section stays `ok`.
 
-## Check commands (cwd: repo root unless stated)
+## 8. Agent behaviour
 
-    powershell -NoProfile -ExecutionPolicy Bypass -File collector\tests\Test-ReadOnly.ps1
-    powershell -NoProfile -ExecutionPolicy Bypass -File collector\tests\Test-Collector.ps1
-    powershell -NoProfile -ExecutionPolicy Bypass -File collector\collector.ps1 -Only Protection -DryRun
-    powershell -NoProfile -ExecutionPolicy Bypass -File collector\collector.ps1 -OutputPath out\dev\scan.json
-    engine\.venv\Scripts\python engine\tools\validate.py scan out\dev\scan.json
-    powershell -NoProfile -ExecutionPolicy Bypass -File installer\contract-check.ps1
-    # cwd: desktop
-    npm run test
-
-## Git
-
-- Work only on `brick/collector` (contract changes on `contract/<topic>`). Never commit to `main`,
-  never force-push. Rebase on main with `git pull --rebase origin main` before a PR.
-- Commit only after checkpoint 4. Paste isolation-test output into PR descriptions.
+- Plato plans, routes and reviews; follow `.claude/academy.md` for routing and commissions.
+  Commissions point at manual sections and file paths, not pasted text.
+- Stop and ask (aporia) instead of guessing on anything in §2, §3 or §6.
+- Keep `.claude/agora.md` cleared at the end of each phase.
+- Keep chat updates short during a phase; save detail for the brief.
