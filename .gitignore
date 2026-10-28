@@ -44,3 +44,4 @@ desktop/src/main/resource-hashes.json
 CLAUDE.local.md
 .claude/
 .claude/agora.md
+*.tsbuildinfo
