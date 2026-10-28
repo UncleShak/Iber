@@ -40,6 +40,6 @@ desktop/src/main/resource-hashes.json
 .antigravity-private.pem
 
 # Personal Claude Code / Academy setup (Shakir only)
-CLAUDE.md
+CLAUDE.local.md
 .claude/
 .claude/agora.md
