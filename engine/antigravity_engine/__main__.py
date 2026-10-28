@@ -23,7 +23,12 @@ from antigravity_engine.baseline import Baseline, BaselineError, load_baseline
 from antigravity_engine.contract import ScanModel
 from antigravity_engine.parser import ContractError, load_json, parse_dict
 from antigravity_engine.paths import default_baseline_path
-from antigravity_engine.report_model import REPORT_SCHEMA_VERSION, build_error_report, build_report
+from antigravity_engine.report_model import (
+    REPORT_SCHEMA_VERSION,
+    build_error_report,
+    build_report,
+    valid_run_id,
+)
 from antigravity_engine.risk import summary
 from antigravity_engine.scoring import backup, fixes, patch, protection, recovery, software
 from antigravity_engine.scoring.result import CATEGORY_ORDER, CategoryResult
@@ -101,13 +106,15 @@ def _baseline_version(path: Path) -> str:
         return UNKNOWN_BASELINE
 
 
-def _render(report: dict, out_dir: Path, evidence_id: str | None = None) -> None:
+def _render(
+    report: dict, out_dir: Path, evidence_id: str | None = None, org: str | None = None
+) -> None:
     # Imported here so a broken renderer dependency is a render failure (exit 3),
     # not a crash before report.json exists.
     from antigravity_engine.render import html, pdf
 
-    html.render(report, out_dir / REPORT_HTML, evidence_id=evidence_id)
-    pdf.render(report, out_dir / ACTION_PLAN_PDF, evidence_id=evidence_id)
+    html.render(report, out_dir / REPORT_HTML, org=org, evidence_id=evidence_id)
+    pdf.render(report, out_dir / ACTION_PLAN_PDF, org=org, evidence_id=evidence_id)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -117,6 +124,10 @@ def _parser() -> argparse.ArgumentParser:
     ap.add_argument("--in", dest="in_path", metavar="PATH", help="scan.json to read")
     ap.add_argument("--out", dest="out_dir", metavar="DIR", help="folder for the report files")
     ap.add_argument("--baseline", metavar="PATH", help="software-baseline.json")
+    ap.add_argument("--run-id", metavar="ID",
+                    help="the app's run folder name; used for the error report if the scan can't be read")
+    ap.add_argument("--org", metavar="NAME",
+                    help="licence organisation for the HTML and PDF header (D16); never in report.json")
     ap.add_argument("--json-only", action="store_true", help="skip report.html and action-plan.pdf")
     ap.add_argument("--version", action="store_true", help="print versions and exit")
     ap.add_argument("--verify", metavar="PATH",
@@ -137,6 +148,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return result.code
     if not args.in_path or not args.out_dir:
         ap.error("--in and --out are required")
+    if args.run_id is not None and not valid_run_id(args.run_id):
+        print(f"antigravity-engine: ignoring invalid --run-id {args.run_id!r}", file=sys.stderr)
+        args.run_id = None
 
     out_dir = Path(args.out_dir)
     report_path = out_dir / REPORT_JSON
@@ -146,7 +160,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         raw = load_json(Path(args.in_path))
         scan = parse_dict(raw)
     except ContractError as e:
-        report = build_error_report(str(e), __version__, _baseline_version(baseline_path))
+        report = build_error_report(
+            str(e), __version__, _baseline_version(baseline_path), run_id=args.run_id
+        )
         write_json(report, report_path)
         print(f"antigravity-engine: invalid input: {e}", file=sys.stderr)
         return EXIT_BAD_INPUT
@@ -157,6 +173,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"antigravity-engine: cannot load baseline: {e}", file=sys.stderr)
         return EXIT_CRASH
 
+    # The report keeps the scan's run_id even if it differs: --verify recomputes
+    # the report from the scan alone (D4).
+    if args.run_id is not None and args.run_id != scan.run_id:
+        print(
+            f"antigravity-engine: warning: --run-id {args.run_id} differs from scan run_id "
+            f"{scan.run_id}; report uses the scan's",
+            file=sys.stderr,
+        )
     report = assess(scan, baseline)
     write_json(report, report_path)
     # s2.14: written on every scored run; a scan that fails the contract has no bundle (D19).
@@ -166,7 +190,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.json_only:
         return EXIT_OK
     try:
-        _render(report, out_dir, bundle["evidence_id"])
+        # D16: the app verifies the licence and passes only the org name.
+        org = (args.org or "").strip() or None
+        _render(report, out_dir, bundle["evidence_id"], org)
     except Exception:
         print("antigravity-engine: rendering failed:", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
