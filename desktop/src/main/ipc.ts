@@ -53,9 +53,11 @@ export function registerIpc() {
 
   ipcMain.handle(IPC.scanRun, async () => {
     if (currentAbort) return { ok: false, runId: "", stage: "collector", message: "A scan is already running." };
+    let licenseOrg = "";
     try {
       const res = verifyLicense((await fs.readFile(paths.licenseFile(), "utf-8")).trim());
       if (!res.ok) return { ok: false, runId: "", stage: "license", message: "License is no longer valid." };
+      licenseOrg = res.org;
     } catch { return { ok: false, runId: "", stage: "license", message: "No valid license found." }; }
 
     const now = new Date();
@@ -83,7 +85,7 @@ export function registerIpc() {
         return { ok: false, runId, stage: "collector", message: "System check failed. Details saved to a log file." };
       }
       progress("engine");
-      const eRes = await runEngine(runDir, signal);
+      const eRes = await runEngine(runDir, runId, licenseOrg, signal);
       if (signal.aborted) return { ok: false, runId, stage: "cancelled", message: "Scan cancelled." };
       if (eRes.code !== 0 && eRes.code !== 2 && eRes.code !== 3 || eRes.timedOut) {
         await logErr(`Engine failed: ${eRes.code} ${eRes.stderr}`);
@@ -93,7 +95,7 @@ export function registerIpc() {
       if (buf.length > 2 * 1024 * 1024) throw new Error("Report too large");
       const report = JSON.parse(buf.toString("utf-8"));
       progress("done");
-      return { ok: true, runId, report, pdfAvailable: eRes.code !== 3 };
+      return { ok: true, runId, report, pdfAvailable: eRes.code === 0 };
     } catch (err: any) {
       await logErr(`Scan error: ${err.message}`);
       return { ok: false, runId, stage: "engine", message: "Unexpected error. Details saved to a log file." };
