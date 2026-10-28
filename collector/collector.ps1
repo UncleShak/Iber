@@ -3,14 +3,21 @@
 param(
     [string]   $OutputPath,
     [switch]   $DryRun,
-    [ValidateSet('Host','Backup','Patch','Software','Protection','Recovery')]
     [string[]] $Only,
     [string]   $MockFile,
-    [ValidatePattern('^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z_[0-9a-f]{4}$')]
     [string]   $RunId
 )
 trap { [Console]::Error.WriteLine('Collector failed'); exit 1 }
 $ErrorActionPreference = 'Stop'
+
+# Checked here, not with Validate* attributes, so bad values exit 64 (3.3). -cnotmatch: the schema wants lower-case hex;
+# [0-9] not \d (no non-ASCII digits); \z not $ ($ also matches before a trailing newline). run_id names a folder.
+if ($PSBoundParameters.Keys -contains 'RunId' -and $RunId -cnotmatch '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}Z_[0-9a-f]{4}\z') {
+    [Console]::Error.WriteLine('Bad -RunId'); exit 64
+}
+foreach ($name in $Only) {
+    if (@('Host','Backup','Patch','Software','Protection','Recovery') -notcontains $name) { [Console]::Error.WriteLine('Bad -Only value'); exit 64 }
+}
 $Version = '0.1.0'
 $sw = [Diagnostics.Stopwatch]::StartNew()
 

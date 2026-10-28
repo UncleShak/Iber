@@ -15,6 +15,7 @@ dist/
 out/
 .pytest_cache/
 .ruff_cache/
+.DS_Store
 
 # Offline prep: wheelhouse, Sysinternals tools (manual §1.5)
 .offline/
@@ -40,6 +41,6 @@ desktop/src/main/resource-hashes.json
 .antigravity-private.pem
 
 # Personal Claude Code / Academy setup (Shakir only)
-CLAUDE.md
+CLAUDE.local.md
 .claude/
 .claude/agora.md
