@@ -27,6 +27,7 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 | D13 | When CFA/ASR are excluded; third-party AV always green | High | Phase 6 | DECIDED 2026-10-28 (Tshedi) |
 | D14 | Null fields and all-grey protection category | Medium | Phase 6 | DECIDED 2026-10-28 (Tshedi) |
 | D15 | All-null recovery section rated green | Medium | Any time | CHANGED 2026-10-28 (Tshedi) |
+| D16 | Licence org in the HTML header | Low | Phase 10 / integration | OPEN |
 
 ---
 
@@ -459,3 +460,32 @@ evidence behind it. A green category also counts toward the risk score
 - Unavailable only when nothing is known (chosen).
 - Follow R7 literally: green only when `system_restore_enabled == true`,
   unavailable for every other unrated null mix.
+
+---
+
+## D16. Licence org in the HTML header
+
+Logged: 2026-10-28, phase 8.
+
+**Gap.** s4.10 puts "licence org" in the report.html header, but s2.3 row 9
+says renderers read only the report model, and report.json (s0.8) has no
+org field. The licence token is verified by the app (s3.11, s4.9.3 footer),
+not the engine.
+
+**Solution in code.** `render.html.render(report, path, org=None)` takes the
+org as an optional argument; the header shows "Licensed to {org}" only when
+it is given. The CLI does not pass it, so engine-made reports omit the line.
+Also added: `python -m antigravity_engine.render.html report.json
+report.html`, which validates report.json against report.schema.json and
+renders it (re-render without re-scoring).
+File: `engine/antigravity_engine/render/html.py`.
+Tests: `test_licence_org_only_when_given`, `test_main_*` (test_render.py).
+
+**Why revisit.** As shipped, no report.html carries the org, which s4.10
+asks for.
+
+**Alternatives.**
+- Add a CLI flag `--org` that the app passes when it spawns the engine
+  (no contract change; engine still never reads the token).
+- Add an optional `org` to report.schema.json (contract change, s0.10).
+- Drop org from the HTML; the app footer already shows it.
