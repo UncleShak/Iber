@@ -1,0 +1,243 @@
+{#- s4.10 full report. Reads only the report model (s2.3 row 9).
+    Self-contained: inline CSS, no script, no external fonts, images or links.
+    ASCII source: non-ASCII characters come from html.py or HTML entities. -#}
+{% macro status_badge(status, size="") -%}
+{% set b = badge(status) %}
+<span class="badge badge-{{ b.tone }}{% if status == 'failed' %} badge-failed{% endif %}{% if size %} badge-{{ size }}{% endif %}"><span class="sym" aria-hidden="true">{{ b.symbol }}</span> {{ b.word }}</span>
+{%- endmacro %}
+{% macro fix_meta(f) -%}
+<p class="meta">About {{ f.effort_minutes }} min{% if f.needs_admin %} &middot; Needs admin{% endif %}</p>
+{%- endmacro %}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ product }} cyber health report &ndash; {{ report.generated_at | human_date }}</title>
+<style>
+:root {
+  --rag-red: {{ rag["red"] }};
+  --rag-red-bg: {{ rag["red-bg"] }};
+  --rag-amber: {{ rag["amber"] }};
+  --rag-amber-bg: {{ rag["amber-bg"] }};
+  --rag-green: {{ rag["green"] }};
+  --rag-green-bg: {{ rag["green-bg"] }};
+  --rag-grey: {{ rag["grey"] }};
+  --rag-grey-bg: {{ rag["grey-bg"] }};
+  --ink: #101828;
+  --muted: #475467;
+  --line: #d0d5dd;
+}
+* { box-sizing: border-box; }
+html { background: #ffffff; }
+body {
+  margin: 0 auto;
+  max-width: 860px;
+  padding: 32px 24px 48px;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: #ffffff;
+}
+h1, h2, h3 { line-height: 1.25; margin: 0; }
+h1 { font-size: 28px; }
+h2 { font-size: 21px; }
+h3 { font-size: 17px; }
+p { margin: 0 0 8px; }
+a { color: inherit; }
+.muted, .meta { color: var(--muted); }
+.meta { font-size: 14px; }
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border: 1.5px solid currentColor;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.badge-lg { font-size: 18px; padding: 4px 14px; }
+.badge-red { color: var(--rag-red); background: var(--rag-red-bg); }
+.badge-amber { color: var(--rag-amber); background: var(--rag-amber-bg); }
+.badge-green { color: var(--rag-green); background: var(--rag-green-bg); }
+.badge-grey { color: var(--rag-grey); background: var(--rag-grey-bg); }
+.badge-failed { border-style: dashed; }
+
+header { padding-bottom: 20px; border-bottom: 2px solid var(--ink); }
+.product { font-size: 14px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.headline { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 10px; }
+.summary { font-size: 19px; }
+
+section { margin-top: 32px; }
+section > h2 { margin-bottom: 12px; }
+
+ol.top { list-style: none; padding: 0; margin: 0; counter-reset: top; }
+ol.top > li {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 4px 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+ol.top > li:last-child { border-bottom: 1px solid var(--line); }
+.rank { font-size: 24px; font-weight: 700; line-height: 1.1; }
+.top h3 { margin-bottom: 4px; }
+
+.strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.tile {
+  display: block;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-decoration: none;
+}
+.tile-title { display: block; font-weight: 600; margin-bottom: 8px; }
+
+.category { padding-top: 20px; border-top: 1px solid var(--line); break-inside: avoid; page-break-inside: avoid; }
+.category-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+
+table.evidence { width: 100%; border-collapse: collapse; margin: 12px 0 4px; font-size: 15px; }
+.evidence th, .evidence td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+.evidence th { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.evidence td:first-child { width: 38%; }
+.evidence td.state { width: 130px; white-space: nowrap; font-weight: 600; }
+.state-red { color: var(--rag-red); }
+.state-amber { color: var(--rag-amber); }
+.state-green { color: var(--rag-green); }
+.state-grey { color: var(--rag-grey); }
+td.grey { color: var(--rag-grey); font-style: italic; }
+
+.fixes { margin-top: 16px; }
+.fix { margin-top: 12px; padding: 12px 14px; border-left: 4px solid var(--line); background: #ffffff; }
+.fix-red { border-left-color: var(--rag-red); }
+.fix-amber { border-left-color: var(--rag-amber); }
+.fix h3 { margin-bottom: 4px; }
+.fix ol { margin: 6px 0 6px; padding-left: 22px; }
+.toplink { font-size: 14px; font-weight: 600; }
+
+footer { margin-top: 40px; padding-top: 16px; border-top: 2px solid var(--ink); font-size: 14px; color: var(--muted); }
+footer p { margin-bottom: 4px; }
+footer .local { color: var(--ink); font-weight: 600; }
+
+@media print {
+  @page { size: A4; margin: 15mm; }
+  body { max-width: none; padding: 0; font-size: 11pt; }
+  /* Readable without backgrounds: badges keep their border, symbol and word. */
+  .badge, .fix { background: none !important; }
+  .tile { text-decoration: none; }
+  section { margin-top: 18px; }
+  .category, ol.top > li, .fix, header { break-inside: avoid; page-break-inside: avoid; }
+  h2, h3 { break-after: avoid; page-break-after: avoid; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="product">{{ product }} &middot; Cyber health report</div>
+  <div class="headline">
+    <h1>Overall</h1>
+    {{ status_badge(report.overall, "lg") }}
+  </div>
+  <p class="summary">{{ report.summary }}</p>
+  <p class="muted">Checked on {{ report.generated_at | human_date }} &middot; {{ report.scan.os_caption }}{% if org %} &middot; Licensed to {{ org }}{% endif %}</p>
+  {% if not report.scan.is_admin %}
+  <p class="muted">Scanned without admin rights, so some checks were skipped. Run as administrator for a full check.</p>
+  {% endif %}
+</header>
+
+<section id="actions">
+  <h2>Your top 3 fixes</h2>
+  {% if report.top_fixes %}
+  <ol class="top">
+    {% for fix_id in report.top_fixes %}
+    {% set f = fixes[fix_id] %}
+    <li>
+      <span class="rank">{{ loop.index }}</span>
+      <div>
+        <h3>{{ f.title }} {{ status_badge(f.severity) }}</h3>
+        <p>{{ f.why }}</p>
+        {{ fix_meta(f) }}
+        <a class="toplink" href="#fix-{{ f.id }}">Steps in {{ titles[f.category] }}</a>
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p>Nothing urgent. Re-check monthly.</p>
+  {% endif %}
+</section>
+
+<section id="overview">
+  <h2>At a glance</h2>
+  <nav class="strip">
+    {% for c in report.categories %}
+    <a class="tile" href="#{{ c.id }}">
+      <span class="tile-title">{{ c.title }}</span>
+      {{ status_badge(c.status) }}
+    </a>
+    {% endfor %}
+  </nav>
+</section>
+
+{% for c in report.categories %}
+<section class="category" id="{{ c.id }}">
+  <div class="category-head">
+    <h2>{{ c.title }}</h2>
+    {{ status_badge(c.status) }}
+  </div>
+  <p>{{ c.explanation }}</p>
+  {% if c.evidence %}
+  <table class="evidence">
+    <thead><tr><th scope="col">What we checked</th><th scope="col">What we found</th><th scope="col">Status</th></tr></thead>
+    <tbody>
+      {% for row in c.evidence %}
+      {% set st = row.status | default(none) %}
+      <tr>
+        <td>{{ row.label }}</td>
+        <td{% if st in ("unavailable", "failed") %} class="grey"{% endif %}>{{ row | evidence_value }}</td>
+        {% if st %}
+        {% set b = badge(st) %}
+        <td class="state state-{{ b.tone }}"><span aria-hidden="true">{{ b.symbol }}</span> {{ b.word }}</td>
+        {% else %}
+        <td class="state"></td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  {% if c.fix_ids %}
+  <div class="fixes">
+    {% for fix_id in c.fix_ids %}
+    {% set f = fixes[fix_id] %}
+    <div class="fix fix-{{ f.severity }}" id="fix-{{ f.id }}">
+      <h3>{% if fix_id in rank %}Fix {{ rank[fix_id] }}: {% endif %}{{ f.title }}</h3>
+      <p>{{ f.why }}</p>
+      <ol>
+        {% for step in f.steps %}
+        <li>{{ step }}</li>
+        {% endfor %}
+      </ol>
+      {{ fix_meta(f) }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+{% endfor %}
+
+<footer>
+  <p class="local">Generated locally on this PC. Nothing was uploaded.</p>
+  <p>Engine {{ report.engine_version }} &middot; Baseline {{ report.baseline_version }} &middot; Run {{ report.run_id }}</p>
+  {% if evidence_id %}
+  <p>Evidence ID {{ evidence_id }}</p>
+  {% endif %}
+  <p>This is a guidance check, not a full security audit.</p>
+</footer>
+
+</body>
+</html>

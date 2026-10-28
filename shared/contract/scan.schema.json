@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://antigravity.local/contract/scan.schema.json",
+  "title": "Antigravity collector output (scan.json)",
+  "type": "object",
+  "required": ["schema_version", "run_id", "collected_at", "collector_version", "duration_ms",
+               "host", "backup", "patch", "software", "protection", "recovery"],
+  "properties": {
+    "schema_version":    { "type": "string", "pattern": "^1\\.\\d+\\.\\d+$" },
+    "run_id":            { "$ref": "#/$defs/runId" },
+    "collected_at":      { "$ref": "#/$defs/isoUtc" },
+    "collector_version": { "type": "string", "minLength": 1 },
+    "duration_ms":       { "type": "integer", "minimum": 0 },
+
+    "host": {
+      "type": "object",
+      "required": ["hostname_hash", "os_caption", "os_build", "os_edition", "is_admin", "ps_version"],
+      "properties": {
+        "hostname_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]+$" },
+        "os_caption":    { "type": "string" },
+        "os_build":      { "type": "string", "pattern": "^\\d+$" },
+        "os_edition":    { "type": "string" },
+        "is_admin":      { "type": "boolean" },
+        "ps_version":    { "type": "string" }
+      }
+    },
+
+    "backup": {
+      "allOf": [{ "$ref": "#/$defs/section" }],
+      "required": ["file_history_enabled", "file_history_last_backup", "windows_backup_last_success",
+                   "onedrive_kfm_folders", "shadow_copy_count", "third_party_agents"],
+      "properties": {
+        "file_history_enabled":        { "type": ["boolean", "null"] },
+        "file_history_last_backup":    { "$ref": "#/$defs/isoUtcOrNull" },
+        "windows_backup_last_success": { "$ref": "#/$defs/isoUtcOrNull" },
+        "onedrive_kfm_folders":        { "type": "array", "items": { "enum": ["Desktop", "Documents", "Pictures"] }, "uniqueItems": true },
+        "shadow_copy_count":           { "type": ["integer", "null"], "minimum": 0 },
+        "third_party_agents":          { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "patch": {
+      "allOf": [{ "$ref": "#/$defs/section" }],
+      "required": ["hotfix_count", "latest_hotfix_installed_on", "days_since_latest_hotfix", "hotfixes", "pending_reboot"],
+      "properties": {
+        "hotfix_count":               { "type": ["integer", "null"], "minimum": 0 },
+        "latest_hotfix_installed_on": { "$ref": "#/$defs/dateOrNull" },
+        "days_since_latest_hotfix":   { "type": ["integer", "null"] },
+        "hotfixes": {
+          "type": "array", "maxItems": 10,
+          "items": {
+            "type": "object", "required": ["kb", "installed_on"],
+            "properties": {
+              "kb":           { "type": "string", "pattern": "^KB\\d+$" },
+              "installed_on": { "$ref": "#/$defs/date" }
+            }
+          }
+        },
+        "pending_reboot": { "type": ["boolean", "null"] }
+      }
+    },
+
+    "software": {
+      "allOf": [{ "$ref": "#/$defs/section" }],
+      "required": ["installed"],
+      "properties": {
+        "installed": {
+          "type": "array", "maxItems": 500,
+          "items": {
+            "type": "object", "required": ["name", "version", "publisher"],
+            "properties": {
+              "name":      { "type": "string", "minLength": 1, "maxLength": 256 },
+              "version":   { "type": "string", "maxLength": 64 },
+              "publisher": { "type": "string", "maxLength": 256 }
+            }
+          }
+        }
+      }
+    },
+
+    "protection": {
+      "type": "object",
+      "required": ["bitlocker", "defender", "cfa", "asr"],
+      "properties": {
+        "bitlocker": {
+          "allOf": [{ "$ref": "#/$defs/section" }],
+          "required": ["os_volume_protection", "os_volume_encryption_pct"],
+          "properties": {
+            "os_volume_protection":     { "enum": ["on", "off", null] },
+            "os_volume_encryption_pct": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+            "encryption_method":        { "type": ["string", "null"] }
+          }
+        },
+        "defender": {
+          "allOf": [{ "$ref": "#/$defs/section" }],
+          "required": ["antivirus_enabled", "realtime_enabled", "tamper_protected", "signature_age_days"],
+          "properties": {
+            "antivirus_enabled":  { "type": ["boolean", "null"] },
+            "realtime_enabled":   { "type": ["boolean", "null"] },
+            "tamper_protected":   { "type": ["boolean", "null"] },
+            "signature_age_days": { "type": ["integer", "null"], "minimum": 0 },
+            "third_party_av":     { "type": ["string", "null"] }
+          }
+        },
+        "cfa": {
+          "allOf": [{ "$ref": "#/$defs/section" }],
+          "required": ["mode"],
+          "properties": { "mode": { "enum": ["enabled", "disabled", "audit", null] } }
+        },
+        "asr": {
+          "allOf": [{ "$ref": "#/$defs/section" }],
+          "required": ["rules"],
+          "properties": {
+            "rules": {
+              "type": "array",
+              "items": {
+                "type": "object", "required": ["id", "action"],
+                "properties": {
+                  "id":     { "type": "string", "pattern": "^[0-9a-fA-F-]{36}$" },
+                  "action": { "enum": ["block", "audit", "warn", "off"] }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "recovery": {
+      "allOf": [{ "$ref": "#/$defs/section" }],
+      "required": ["winre_enabled", "system_restore_enabled", "restore_point_count", "latest_restore_point"],
+      "properties": {
+        "winre_enabled":          { "type": ["boolean", "null"] },
+        "system_restore_enabled": { "type": ["boolean", "null"] },
+        "restore_point_count":    { "type": ["integer", "null"], "minimum": 0 },
+        "latest_restore_point":   { "$ref": "#/$defs/isoUtcOrNull" }
+      }
+    }
+  },
+
+  "$defs": {
+    "runId":        { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}-\\d{2}-\\d{2}Z_[0-9a-f]{4}$" },
+    "isoUtc":       { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$" },
+    "isoUtcOrNull": { "anyOf": [{ "$ref": "#/$defs/isoUtc" }, { "type": "null" }] },
+    "date":         { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "dateOrNull":   { "anyOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }] },
+    "section": {
+      "type": "object",
+      "required": ["status", "error"],
+      "properties": {
+        "status": { "enum": ["ok", "unavailable", "failed"] },
+        "error":  { "type": ["string", "null"], "maxLength": 200 }
+      }
+    }
+  }
+}

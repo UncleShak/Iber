@@ -1,0 +1,155 @@
+{
+  "baseline_version": "2026-10-27",
+  "checked_on": "2026-10-27",
+  "os": {
+    "min_supported_build": { "win11": "22631" },
+    "win10_eos_date": "2025-10-14"
+  },
+  "asr": {
+    "recommended": [
+      { "id": "d4f940ab-401b-4efc-aadc-ad5f3c50688a", "name": "Block Office apps from creating child processes" },
+      { "id": "c1db55ab-c21a-4637-bb3f-a12568109d35", "name": "Block credential stealing from lsass.exe" },
+      { "id": "be9ba2d9-53ea-4cdc-84e5-9b1eeee46550", "name": "Block executable content from email" }
+    ]
+  },
+  "entries": [
+    {
+      "id": "chrome",
+      "display_name": "Google Chrome",
+      "match": { "name_regex": "^Google Chrome$", "publisher_regex": "^Google" },
+      "min_safe_version": "142.0.7444.175",
+      "severity": "high",
+      "eol": false,
+      "eol_note": null,
+      "update_hint": "Open Chrome, go to Settings > About Chrome, let it update, then click Relaunch.",
+      "source_url": "https://chromereleases.googleblog.com/"
+    },
+    {
+      "id": "edge",
+      "display_name": "Microsoft Edge",
+      "match": { "name_regex": "^Microsoft Edge$", "publisher_regex": "^Microsoft" },
+      "min_safe_version": "142.0.3595.90",
+      "severity": "high",
+      "eol": false,
+      "eol_note": null,
+      "update_hint": "Open Edge, go to Settings > About Microsoft Edge, let it update, then click Restart.",
+      "source_url": "https://learn.microsoft.com/en-us/deployedge/microsoft-edge-relnotes-security"
+    },
+    {
+      "id": "firefox",
+      "display_name": "Mozilla Firefox",
+      "match": {
+        "name_regex": "^Mozilla Firefox( [0-9][0-9.]*)?( \\((x64|x86|arm64)[^)]*\\))?$",
+        "publisher_regex": "^Mozilla"
+      },
+      "min_safe_version": "145.0",
+      "severity": "high",
+      "eol": false,
+      "eol_note": null,
+      "update_hint": "Open Firefox, go to Settings > General > Firefox Updates, click Check for updates, then Restart to update.",
+      "source_url": "https://www.mozilla.org/en-US/security/known-vulnerabilities/firefox/"
+    },
+    {
+      "id": "acrobat-reader",
+      "display_name": "Adobe Acrobat Reader",
+      "match": { "name_regex": "^Adobe Acrobat Reader( DC)?( .*)?$", "publisher_regex": "^Adobe" },
+      "min_safe_version": "25.001.20937",
+      "severity": "high",
+      "eol": false,
+      "eol_note": null,
+      "update_hint": "Open Acrobat Reader, choose Menu > Help > Check for updates, and install what it finds.",
+      "source_url": "https://helpx.adobe.com/security/products/acrobat.html"
+    },
+    {
+      "id": "7zip",
+      "display_name": "7-Zip",
+      "match": { "name_regex": "^7-Zip( [0-9][0-9.]*)?( \\((x64|x86|arm64)( edition)?\\))?$", "publisher_regex": "^Igor Pavlov" },
+      "min_safe_version": "25.00",
+      "severity": "high",
+      "eol": false,
+      "eol_note": null,
+      "update_hint": "7-Zip does not update itself: download the latest installer from 7-zip.org and run it over the old version.",
+      "source_url": "https://www.7-zip.org/history.txt"
+    },
+    {
+      "id": "winrar",
+      "display_name": "WinRAR",
+      "match": { "name_regex": "^WinRAR( [0-9][0-9.]*)?( \\((32|64)-bit\\))?$", "publisher_regex": "^win\\.rar" },
+      "min_safe_version": "7.13",
+      "severity": "high",
+      "eol": false,
+      "eol_note": null,
+      "update_hint": "WinRAR does not update itself: download the latest version from win-rar.com and install it over the old one.",
+      "source_url": "https://www.win-rar.com/whatsnew.html"
+    },
+    {
+      "id": "zoom",
+      "display_name": "Zoom",
+      "match": { "name_regex": "^Zoom( Workplace)?( \\((32|64)-bit\\))?$", "publisher_regex": "^Zoom" },
+      "min_safe_version": "6.5.0",
+      "severity": "medium",
+      "eol": false,
+      "eol_note": null,
+      "update_hint": "Open Zoom, click your profile picture, choose Check for Updates, and install the update.",
+      "source_url": "https://www.zoom.com/en/trust/security-bulletin/"
+    },
+    {
+      "id": "oracle-java",
+      "display_name": "Oracle Java (JRE)",
+      "match": { "name_regex": "^Java( [0-9]+)? Update [0-9]+( \\((32|64)-bit\\))?$", "publisher_regex": "^Oracle" },
+      "min_safe_version": "8.0.4710",
+      "severity": "high",
+      "eol": false,
+      "eol_note": null,
+      "update_hint": "Open Configure Java from the Start menu, go to the Update tab, and click Update Now; uninstall Java if nothing on this PC needs it.",
+      "source_url": "https://www.oracle.com/security-alerts/"
+    },
+    {
+      "id": "vlc",
+      "display_name": "VLC media player",
+      "match": { "name_regex": "^VLC media player$", "publisher_regex": "^VideoLAN" },
+      "min_safe_version": "3.0.21",
+      "severity": "medium",
+      "eol": false,
+      "eol_note": null,
+      "update_hint": "Open VLC, choose Help > Check for Updates, and install the new version.",
+      "source_url": "https://www.videolan.org/security/"
+    },
+    {
+      "id": "ms-office",
+      "display_name": "Microsoft Office / Microsoft 365",
+      "match": {
+        "name_regex": "^Microsoft (365|Office (Home|Professional|Standard|LTSC))( .*)?$",
+        "publisher_regex": "^Microsoft"
+      },
+      "min_safe_version": "16.0.14332.21000",
+      "severity": "medium",
+      "eol": false,
+      "eol_note": "Office 2016 and Office 2019 reached end of support on 2025-10-14; Microsoft 365 and Office LTSC 2021/2024 are still supported.",
+      "update_hint": "Open Word, go to File > Account > Update Options, and click Update Now.",
+      "source_url": "https://learn.microsoft.com/en-us/officeupdates/microsoft365-apps-security-updates"
+    },
+    {
+      "id": "anydesk",
+      "display_name": "AnyDesk",
+      "match": { "name_regex": "^AnyDesk$", "publisher_regex": "^AnyDesk" },
+      "min_safe_version": "8.0.8",
+      "severity": "high",
+      "eol": false,
+      "eol_note": null,
+      "update_hint": "Open AnyDesk, go to Settings > About AnyDesk, install the update, and uninstall AnyDesk if you no longer use it.",
+      "source_url": "https://anydesk.com/en/changelog/windows"
+    },
+    {
+      "id": "teamviewer",
+      "display_name": "TeamViewer",
+      "match": { "name_regex": "^TeamViewer( [0-9]+)?$", "publisher_regex": "^TeamViewer" },
+      "min_safe_version": "15.67",
+      "severity": "high",
+      "eol": false,
+      "eol_note": null,
+      "update_hint": "Open TeamViewer, choose Help > Check for new version, install it, and uninstall TeamViewer if you no longer use it.",
+      "source_url": "https://www.teamviewer.com/en/resources/trust-center/security-bulletins/"
+    }
+  ]
+}

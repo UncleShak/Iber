@@ -53,6 +53,7 @@
   - [2.11 Running the engine standalone](#211-running-the-engine-standalone)
   - [2.12 PyInstaller build and no-Python verification](#212-pyinstaller-build-and-no-python-verification)
   - [2.13 Brick A is done when…](#213-brick-a-is-done-when)
+  - [2.14 Verifiable evidence bundle](#214-verifiable-evidence-bundle-third-party-check-mvp)
 - [§3 Brick B: Windows Collector (Shakir)](#3-brick-b-windows-collector-shakir)
   - [3.1 Folder layout](#31-folder-layout)
   - [3.2 Script structure: one entry script + dot-sourced probes](#32-script-structure-one-entry-script--dot-sourced-probes)
@@ -154,7 +155,7 @@ The product is four bricks joined by two studs (the contracts). Each person owns
 
 | Brick | Owner | Folder(s) | Consumes | Produces |
 |---|---|---|---|---|
-| **A — Assessment Engine** | Tshedi Sefula | `/engine`, `/baseline` | `scan.json` + baseline | `report.json` (§0.8), `report.html`, `action-plan.pdf` |
+| **A — Assessment Engine** | Tshedi Sefula | `/engine`, `/baseline` | `scan.json` + baseline | `report.json` (§0.8), `report.html`, `action-plan.pdf`, `evidence.json` + `--verify` (§2.14) |
 | **B — Collector & License** | Shakir Alexander | `/collector`, `/shared/contract`, `/desktop/src/main/license` | Windows (read-only) | `scan.json` (§0.5) |
 | **C — Product & Frontend** | Frank Yamba | `/desktop/src/renderer`, `/landing` | `report.json` | Screens, demo |
 | **D — Packaging & Deployment** | Schwan Lungwangau | `/installer`, `/desktop/electron-builder.yml`, `/desktop/src/main/pipeline` | All three bricks' build outputs | `Antigravity-Setup-x.y.z.exe` |
@@ -163,7 +164,8 @@ Pipeline (wired by D in §5; spawn calls in §4.7):
 
 ```
 [License key] → Electron main → powershell.exe collector.ps1 → scan.json
-             → engine.exe --in scan.json --out <dir> → report.json + report.html + action-plan.pdf
+             → engine.exe --in scan.json --out <dir> → report.json + report.html + action-plan.pdf + evidence.json
+             → (relying party) engine.exe --verify evidence.json → VERIFIED | TAMPERED
              → React renderer reads report.json
 ```
 
@@ -193,6 +195,7 @@ A brick is **done** when every box is ticked. Full per-brick checklists with due
 - [ ] Baseline in `/baseline/software-baseline.json` with ≥ 10 common SMME apps.
 - [ ] PyInstaller one-folder build runs on a machine with no Python installed.
 - [ ] Malformed input → exit code 2 + `report.json` with every category `failed`; never a crash dialog.
+- [ ] `evidence.json` produced every run; `engine.exe --verify` returns VERIFIED / TAMPERED / CANNOT_VERIFY correctly (§2.14).
 
 **B — Collector & License [MVP]**
 - [ ] `collector.ps1` runs on PowerShell 5.1, non-admin and admin, finishes in < 20 s.
@@ -227,7 +230,7 @@ Every command block starts with a comment stating the working directory, e.g. `#
 ### 0.5 Input contract: collector → engine
 
 - **File:** `scan.json`, UTF-8, no BOM. Written by the collector to `%LOCALAPPDATA%\Antigravity\runs\<run_id>\scan.json`.
-- **Schema:** `/shared/contract/scan.schema.json` (JSON Schema draft 2020-12). TypeScript types generated into `/shared/contract/types.ts`; Python mirrors in `/engine/antigravity_engine/contract.py`.
+- **Schema:** `/shared/contract/scan.schema.json` (JSON Schema draft 2020-12). TypeScript types hand-written in `/shared/contract/types.ts`, kept in step with the schemas by `shared/contract/tests/`; Python mirrors in `/engine/antigravity_engine/contract.py`.
 - **Version:** `schema_version` follows semver. Engine rejects a different **major** version.
 - **POPIA-minimal:** no usernames, no file names, no IP/MAC addresses, no serial numbers. Hostname is stored only as a salted SHA-256 hash. Nothing leaves the machine.
 
@@ -239,7 +242,7 @@ Annotated contract (comments for reading only — real files are strict JSON):
   "run_id": "2026-11-14T16-42-07Z_7f3a", // UTC timestamp + 4 hex; also the run folder name
   "collected_at": "2026-11-14T16:42:07Z",// ISO-8601 UTC, when collection finished
   "collector_version": "0.1.0",          // collector.ps1 $Version
-  "duration_ms": 8420,                   // total collection time; must stay < 60000
+  "duration_ms": 8420,                   // total collection time; collector target < 60000 (not enforced by the schema)
 
   "host": {
     "hostname_hash": "sha256:9c1e…",     // salted hash — never the raw hostname
@@ -349,7 +352,7 @@ Category key: **1** Backup · **2** Patch · **3** Software · **4** Protections
 | `backup.shadow_copy_count` | integer\|null | ✅ | `3` | VSS snapshots | 1, 5 |
 | `backup.third_party_agents` | string[] | ✅ | `["Veeam Agent"]` | Known backup services detected | 1 |
 | `patch.status` / `.error` | enum / string\|null | ✅ | `"ok"` / `null` | §0.9 | 2 |
-| `patch.hotfix_count` | integer | ✅ | `14` | Installed hotfixes | 2 |
+| `patch.hotfix_count` | integer\|null | ✅ | `14` | Installed hotfixes | 2 |
 | `patch.latest_hotfix_installed_on` | string (date)\|null | ✅ | `"2026-11-05"` | Newest hotfix date | 2 |
 | `patch.days_since_latest_hotfix` | integer\|null | ✅ | `9` | Drives 30/60-day heuristic | 2 |
 | `patch.hotfixes[]` | object[] (`kb`, `installed_on`) | ✅ | see §0.5 | Evidence rows (max 10) | 2 |
@@ -402,7 +405,7 @@ Save each as `/shared/fixtures/scan.<name>.json`. These are the only inputs bric
 }
 ```
 
-**Fixture 2 — `scan.no-bitlocker.json`** (expected: Protections red; others green). Differs from Fixture 1 only in `run_id` and `protection.bitlocker`:
+**Fixture 2 — `scan.no-bitlocker.json`** (expected: Protections red; others green). Same ratings as Fixture 1 except `protection.bitlocker` (off). Other fields are shortened sample values:
 
 ```json
 {
@@ -1046,6 +1049,7 @@ engine/
 │   ├── aggregator.py           ✚   5 results → overall RAG (§2.6)
 │   ├── risk.py                 ✚   weighted risk score → summary sentence (§2.6)
 │   ├── report_model.py         ✚   builds ReportModel, validates vs report.schema.json
+│   ├── evidence.py             ✚   canonical hash, evidence.json, --verify (§2.14)
 │   ├── render/
 │   │   ├── html.py                 Jinja2 → report.html
 │   │   └── pdf.py                  ReportLab → action-plan.pdf
@@ -1062,7 +1066,8 @@ engine/
     ├── test_fixtures.py            end-to-end over /shared/fixtures
     ├── test_cli.py             ✚   exit codes, bad input
     ├── test_render.py          ✚   PDF exactly one page; HTML autoescape (§4.10–§4.11)
-    └── test_integrity.py       ✚   report invariants RPT-01..03, 06 (§7.6)
+    ├── test_integrity.py       ✚   report invariants RPT-01..03, 06 (§7.6)
+    └── test_evidence.py        ✚   verify / tamper cases (§2.14.4)
 baseline/
 ├── software-baseline.json          §2.8
 └── software-baseline.schema.json ✚ §2.8
@@ -1576,6 +1581,7 @@ def test_non_admin_nulls_stay_green_with_grey_rows(make_scan):
 | `test_cli.py` | `schema_version: "2.0.0"` | exit code 2 |
 | `test_cli.py` | `protection` section `status: failed` | protection `failed`, others rated, exit 0 |
 | `test_render.py` | Each fixture rendered | PDF starts with `%PDF` and has exactly one page; an app name containing `<script>` appears escaped in `report.html` |
+| `test_evidence.py` | All fixtures + tamper cases | §2.14.4 table |
 | `test_integrity.py` | All fixtures | `unavailable` never becomes `failed`; red/amber categories have evidence and fixes; `top_fixes` ⊆ `fixes[]`, ≤ 3 (§7.6) |
 
 Run:
@@ -1596,6 +1602,7 @@ CLI (`antigravity_engine/__main__.py`):
 | `--baseline PATH` | ⬜ | `../baseline/software-baseline.json` relative to the exe/package | Baseline file |
 | `--json-only` | ⬜ | off | Skip HTML/PDF (fast UI iteration) |
 | `--version` | ⬜ | — | Print engine + contract version, exit 0 |
+| `--verify PATH` | ⬜ | — | Verify an `evidence.json` (§2.14.2); ignores `--in`/`--out`; exit 0 / 5 / 6 |
 
 | Exit code | Meaning | `report.json` written? |
 |---|---|---|
@@ -1603,6 +1610,8 @@ CLI (`antigravity_engine/__main__.py`):
 | 2 | Invalid input (§2.4) | ✅ (all `failed`) |
 | 3 | Rendering failed (HTML or PDF) | ✅ — UI shows results, disables "Open PDF" |
 | 1 | Anything else (crash before writing) | ⬜ |
+| 5 | `--verify`: TAMPERED (§2.14.2) | n/a |
+| 6 | `--verify`: CANNOT_VERIFY (§2.14.2) | n/a |
 
 Steps:
 
@@ -1702,6 +1711,89 @@ Steps:
 - [ ] `engine.exe` runs in Windows Sandbox / clean VM with no Python, < 5 s.
 - [ ] No network imports (`requests`, `urllib.request`, `http.client`) anywhere — check with `Select-String -Path engine\antigravity_engine\**\*.py -Pattern 'requests|urllib.request|http.client'` (cwd: `antigravity`) returning nothing.
 - [ ] A second team member ran steps 1–3 of §2.11 from a fresh clone.
+- [ ] `evidence.json` written for every run and `--verify` passes all cases in §2.14.4.
+
+### 2.14 Verifiable evidence bundle (third-party check) [MVP]
+
+**Why it exists — our differentiator.** Every other tool gives a small business a report. We give them **proof someone else can check.** An insurer, lender or enterprise client receives one file, `evidence.json`, runs our free verifier on it, and learns in one second whether the report is exactly what our engine produced from the measured scan — or whether anything was edited afterwards (a red changed to green, a fix deleted, a date moved).
+
+**Honest scope — say this exactly in the pitch and Q&A.**
+
+| The verifier **proves** | The verifier **does not prove** |
+|---|---|
+| The report was produced by our published rules (engine + baseline version) from the scan inside the bundle | That the scan itself came from a real, unmodified PC — a determined person could hand-craft a `scan.json` (§7.10 row 22) |
+| Nothing in the report or the scan was edited after the bundle was made | That the PC is still in that state today (the bundle shows `collected_at`; the relying party decides how old is too old) |
+| Which facts were measured by the machine vs not checked (`unavailable`) | Anything about other PCs, email or cloud accounts |
+
+**Default: no client-side signing key.** A key stored on the SMME's own PC proves nothing to a third party (anyone with the PC could re-sign an edited report). Trust comes from **deterministic recomputation**: the relying party re-runs the published rules and compares. Signing by a trusted collector is post-hackathon roadmap.
+
+#### 2.14.1 The bundle (`evidence.json`, written beside `report.json`)
+
+```jsonc
+{
+  "evidence_version": "1.0.0",
+  "run_id": "2026-11-14T17-02-44Z_0003",
+  "created_at": "2026-11-14T17:02:46Z",
+  "engine_version": "0.1.0",                 // verifier must use the same major.minor
+  "baseline_version": "2026-11-01",
+  "baseline_sha256": "sha256:…",             // hash of the exact baseline file used
+  "scan": { … },                              // scan.json embedded unchanged (POPIA-minimal already, §0.5)
+  "report": { … },                            // report.json embedded unchanged
+  "scan_sha256": "sha256:…",                 // canonical hash of "scan"
+  "report_sha256": "sha256:…",               // canonical hash of "report"
+  "evidence_id": "AG-7f3a9c2e41b0"            // "AG-" + first 12 hex of report_sha256 — printed on HTML + PDF
+}
+```
+
+**Canonical hash rule (one function, `evidence.py`):** `sha256(json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8"))`, written as `sha256:<hex>`. Both producer and verifier are the same Python code, so no cross-language canonicalisation is needed.
+
+#### 2.14.2 Verifier: `engine.exe --verify <evidence.json>`
+
+Steps, in order (first failure wins):
+
+| # | Check | Result on failure |
+|---|---|---|
+| 1 | File ≤ 4 MB, valid JSON, `evidence_version` major = 1 | `CANNOT_VERIFY: not an Antigravity evidence file` |
+| 2 | `scan_sha256` and `report_sha256` match the embedded objects | `TAMPERED: scan edited` / `TAMPERED: report edited` |
+| 3 | `engine_version` major.minor equals this verifier's; bundled baseline hash equals `baseline_sha256` | `CANNOT_VERIFY: different engine/baseline — use verifier vX.Y` |
+| 4 | Re-run the full engine on the embedded `scan` with `--json-only`; compare the result with the embedded `report`, ignoring only `generated_at` | `TAMPERED: report does not match the scan (first difference: <json path>)` |
+| 5 | All passed | `VERIFIED — report matches the measured scan. Evidence ID AG-…  Collected <date>. Not checked: <n> items` |
+
+Hashes in step 2 catch lazy edits even when the editor also updates the hashes; step 4 catches an editor who recomputes the hashes, because the report must still match what our rules produce from the scan.
+
+| Exit code | Meaning |
+|---|---|
+| 0 | `VERIFIED` |
+| 5 | `TAMPERED` |
+| 6 | `CANNOT_VERIFY` |
+
+The verifier is the **same `engine.exe`** — no extra download. Relying parties get it from the GitHub Release (§5.8 step 9) with its SHA-256.
+
+#### 2.14.3 Ownership and wiring
+
+| Piece | Owner | Where |
+|---|---|---|
+| `evidence.py` (canonical hash, write bundle, `--verify`) | A (Tshedi) | `engine/antigravity_engine/evidence.py` |
+| Contract for the bundle | B (Shakir) | `shared/contract/evidence.schema.json` (Appendix A.3) |
+| "Export evidence for insurer" button | C (Frank) | Results screen (§4.9.3) |
+| `report:exportEvidence` IPC + save dialog | D (Schwan) | `desktop/src/main/ipc.ts` (§4.6) |
+| Evidence ID on HTML footer and PDF footer | A code, C layout | §4.10, §4.11 |
+
+Export copies `evidence.json` **only** to a location the user picks in a Save dialog (`dialog.showSaveDialog`) — never automatic, never uploaded (PRV-07 still holds).
+
+#### 2.14.4 Tests (`engine/tests/test_evidence.py`)
+
+| Case | Expected |
+|---|---|
+| Bundle from each `/shared/fixtures/scan.*.json`, verified unchanged | exit 0, `VERIFIED` |
+| A category `status` changed red → green, hashes **not** updated | exit 5, `report edited` |
+| Same edit **with** hashes recomputed | exit 5, `report does not match the scan` |
+| One `scan` field changed, hashes recomputed (e.g. `realtime_enabled` false → true) | exit 5 (report no longer matches) |
+| A `top_fixes` entry deleted, hashes recomputed | exit 5 |
+| `engine_version` changed to `9.9.0` | exit 6 |
+| Bundle produced twice from the same scan | identical `report_sha256` apart from `generated_at` (determinism) |
+
+Run: `.venv\Scripts\python -m pytest -q tests\test_evidence.py` (cwd: `antigravity/engine`).
 
 ---
 
@@ -2494,6 +2586,7 @@ export const IPC = {
   scanProgress:  "scan:progress",    // main → renderer event: ScanProgress
   reportOpenPdf: "report:openPdf",   // invoke(runId) → { ok: boolean }
   reportOpenHtml:"report:openHtml",  // invoke(runId) → { ok: boolean }
+  reportExportEvidence:"report:exportEvidence", // invoke(runId) → { ok: boolean; savedTo?: "user-chosen" } — Save dialog in main (§2.14.3)
   appInfo:       "app:info",         // invoke → AppInfo
 } as const;
 
@@ -2532,6 +2625,7 @@ contextBridge.exposeInMainWorld("antigravity", {
   },
   openPdf:      (runId: string) => ipcRenderer.invoke(IPC.reportOpenPdf, runId),
   openHtml:     (runId: string) => ipcRenderer.invoke(IPC.reportOpenHtml, runId),
+  exportEvidence:(runId: string) => ipcRenderer.invoke(IPC.reportExportEvidence, runId),
   appInfo:      () => ipcRenderer.invoke(IPC.appInfo),
 });
 ```
@@ -2698,8 +2792,8 @@ Layout top to bottom:
 | Header | Large `StatusBadge` for overall, `summary` sentence, "Checked on {generated_at}" | `overall`, `summary`, `generated_at` |
 | Top 3 fixes | `FixList` — numbered cards: title, why, steps, "~{effort} min", admin icon if `needs_admin` | `top_fixes` → `fixes[]` |
 | Categories | 5 × `CategoryCard` in the fixed order of `categories[]` | `categories[]` |
-| Actions | "Open one-page action plan (PDF)", "Open full report", "Scan again" | `pdfAvailable` |
-| Footer | `lic` / `org`, engine and baseline version, "Scanned without admin rights" note if `scan.is_admin` false | license state, `engine_version`, `baseline_version`, `scan` |
+| Actions | "Open one-page action plan (PDF)", "Open full report", **"Export evidence for insurer"** (§2.14), "Scan again" | `pdfAvailable`, `runId` |
+| Footer | Evidence ID (`AG-…`, §2.14.1), `lic` / `org`, engine and baseline version, "Scanned without admin rights" note if `scan.is_admin` false | license state, `engine_version`, `baseline_version`, `scan` |
 
 `CategoryCard`: title + `StatusBadge`; `explanation` paragraph; `EvidenceTable` (label | value | small status dot); "How to fix" links scroll to the matching fix if its id is in `top_fixes`, otherwise expand the fix inline.
 
@@ -2958,6 +3052,7 @@ npm ci --prefer-offline; npm run build; npm run preview
 - [ ] With Brick B's collector and Brick A's engine on `main`, a real scan (no `AG_MOCK`) on Dev-1 and Dev-2 shows results in < 60 s.
 - [ ] Non-admin run shows the admin hint and grey "Not checked" rows.
 - [ ] "Open PDF" and "Open full report" open the right files; PDF is one page.
+- [ ] "Export evidence for insurer" saves `evidence.json` where the user chooses; `engine.exe --verify` on it prints VERIFIED.
 - [ ] HTML report opened offline looks identical to the app's colours; a test app named `<script>alert(1)</script>` (mock fixture) renders as text.
 
 **Landing**
@@ -3678,6 +3773,8 @@ Executed by **Tshedi** (engine tests) and **Frank** (rendering). Most are automa
 | RPT-07 | [MVP] | Injected text from the PC is never executed | Fixture with software name `<script>alert(1)</script><img src=x onerror=alert(2)>` | Run engine → open HTML in Edge; load fixture in app (mock mode) | Text shown literally; no dialog; HTML source shows escaped `&lt;script&gt;` | ☐ |
 | RPT-08 | [MVP] | PDF agrees with app and HTML | One real scan | Compare overall status, 5 category statuses and top-3 titles across UI, HTML and PDF | Identical | ☐ |
 | RPT-09 | [MVP] | Partial failures are disclosed | Mock `probe-throws` (§3.10) → engine → app | Run | Software card "Check failed"; summary ends "Some checks couldn't run."; other categories rated normally | ☐ |
+| RPT-11 | [MVP] | Exported evidence verifies | One real VM scan | Export evidence; on a second machine run `engine.exe --verify evidence.json` | `VERIFIED`, same Evidence ID as on the PDF | ☐ |
+| RPT-12 | [MVP] | Tampering is caught | RPT-11 bundle | Open in Notepad, change one category `"red"` → `"green"`; verify. Then recompute both hashes with a 5-line Python script and verify again | Both runs: `TAMPERED` (exit 5) | ☐ |
 | RPT-10 | [MVP] | Report doesn't overclaim | Review | Footer says "Guidance only, not a full audit" in HTML and PDF (§4.10–4.11) | Present | ☐ |
 
 ### 7.7 Least privilege (LP)
@@ -3752,6 +3849,7 @@ Executed by **Schwan**.
 | S3 | Licences are signed tokens verified offline |
 | S4 | No auto-remediation: the owner stays in control of every fix |
 | S5 | Least privilege: runs as a normal user; admin is optional |
+| S6 | Verifiable: a third party can independently check the report wasn't edited (§2.14) |
 
 | # | Asset | Threat | Mitigation | Tests | MVP status | Claim |
 |---|---|---|---|---|---|---|
@@ -3775,6 +3873,8 @@ Executed by **Schwan**.
 | 18 | The owner's PC | Bundled extras, persistence, leftovers | Inventory allow-list; no services/tasks/Run keys; full-clean uninstaller | INS-03..05 | ✅ Mitigated | S1, S2 |
 | 19 | The owner's PC | AV false positive blocks or flags us | No UPX, no encoded/hidden PowerShell, plain read-only script; Defender-on VM testing | INS-06, LP-07 | ✅ Mitigated (monitored) | S5 |
 | 20 | Availability of the scan | GPO execution policy or Constrained Language Mode blocks collector | Clear error message; CLM detection recorded | §6.8 row 7 | 🟡 Partial — rare for no-IT SMMEs | — |
+| 21 | Report sent to an insurer/client | Owner edits the report to look healthier | Evidence bundle + deterministic `--verify` recomputation (§2.14) | RPT-11, RPT-12 | ✅ Mitigated | S6 |
+| 22 | Report sent to an insurer/client | Owner hand-crafts a fake `scan.json` | None in MVP — the verifier proves rules + integrity, not that the scan came from a real PC. Disclosed in the pitch | — | ⚠️ Accepted risk — next: trusted/attested collector | S6 |
 
 ---
 
@@ -3846,7 +3946,7 @@ Columns as specified. "Pass" = deliverable met; "Fallback" = what happens if not
 | 18:00–19:00 | Dinner | **No coding.** Cross-review the contract: Tshedi reads Shakir's real `-DryRun` output; Frank reads Tshedi's first `report.json`; Schwan checks exit codes and arguments (§4.7) against §2.11 and §3.3. Any needed change → all four agree in the team channel, then one `contract/*` PR merged before 19:15 (§0.10) | All | Short list of contract tickets, each with owner | Changes that aren't blocking wait until after integration, and still need all four members to agree |
 | 19:00–21:00 | Hacking | **First integration attempt — §6 Phases 1–3 and 5.** 19:00 force-push ban starts (§1.9). Merge order: contract → engine → collector → desktop UI → main pipeline (§6.2). Run the schema gate on real collector output (§6.3 step 2.3). Run the app in dev mode, real collector + engine from source (§6.6 steps 5.1–5.5). Tag `v0.1-integrated` | Tshedi merges; all | **End-to-end dev-mode scan producing `report.html`** (+ results screen) on Dev-1, tag `v0.1-integrated` | 20:30 checkpoint: if not working, cut per ladder rung 2 (PDF → screenshot), then rung 3 if still broken at 21:00 |
 | 21:00–21:15 | Mentor check-in | **5-minute demo** of the dev-mode run: licence → scan → results → HTML report. Frank drives, Tshedi narrates. Shakir writes every mentor comment as a ticket, tagged `mentor` | Frank, Tshedi; Shakir scribes | Ticket list `mentor-d1-*` | If e2e broken: demo the mock-mode UI + a real `scan.json` + engine-generated HTML separately, state honestly what's left |
-| 21:15–00:00 | Night shift begins | Schwan: `electron-builder.yml`, NSIS include, PyInstaller handoff, manifest script, `build-all.ps1` → first installer → install on one clean-ish machine (VM or a teammate's spare account) (§5.2–§5.9, §6.7). Frank: PDF layout spec handed to Tshedi; "Open PDF" wired; progress model (§4.8, §4.11). Tshedi: remaining scoring rules + boundaries, `pdf.py`, `test_integrity.py` (§2.5, §2.10, §7.6). Shakir: remaining probes, all mocks, `Test-Collector.ps1`, `-RunId` + `AG-PHASE` (§3.5–§3.10). 22:30 quick sync (5 min, standing) | Each owner | **Installer installed and scanning on one clean-ish machine by 00:00**; PDF opens from the app; tag `v0.2-installer` | 23:00 ladder rung 4 (installer not building → dev-mode demo + pre-recorded video). Schwan keeps going alone until 02:00; others continue their tasks |
+| 21:15–00:00 | Night shift begins | Schwan: `electron-builder.yml`, NSIS include, PyInstaller handoff, manifest script, `build-all.ps1` → first installer → install on one clean-ish machine (VM or a teammate's spare account) (§5.2–§5.9, §6.7). Frank: PDF layout spec handed to Tshedi; "Open PDF" wired; progress model (§4.8, §4.11). Tshedi: remaining scoring rules + boundaries, `pdf.py`, `test_integrity.py`, **`evidence.py` + `--verify` + `test_evidence.py`** (§2.5, §2.10, §2.14, §7.6). Frank: export button; Schwan: `report:exportEvidence` IPC. Shakir: remaining probes, all mocks, `Test-Collector.ps1`, `-RunId` + `AG-PHASE` (§3.5–§3.10). 22:30 quick sync (5 min, standing) | Each owner | **Installer installed and scanning on one clean-ish machine by 00:00**; PDF opens from the app; tag `v0.2-installer` | 23:00 ladder rung 4 (installer not building → dev-mode demo + pre-recorded video). Schwan keeps going alone until 02:00; others continue their tasks |
 | 00:00–02:00 | Overnight hacking + mentor support | **§7 first pass.** Shakir + Schwan on the VM: RO-01, RO-02, RO-03 (read-only diff, Procmon, audit log); LIC-01–LIC-07; PRV-01, PRV-02 (network capture, firewall block). Tshedi: RPT-01–RPT-06 (automated). Frank: RPT-07, RPT-08 (escaping, PDF/HTML/app agreement). Fixes for any ❌ go on `fix/*` branches with a ticket | Shakir leads | **Pass/fail sheet** `docs/security-results.md` with a ticket per ❌ | 01:00: any **critical** ❌ (a write by the collector, a tampered token accepted, any network call) → ladder rung 5: escalate to a mentor during this support window; never ship silently |
 | 02:00–06:00 | Shower slots + continued work | **Staggered rest (§8.5).** Awake pair does **mechanical work only — no new features**: clean-VM install test (§5.9), report rendering checks against fixtures and a real scan, pitch slides skeleton. Fixes allowed only for tickets from the 00:00 security pass | Rota §8.5 | VM test log line in `docs/decisions.md`; rendering check notes; `docs/pitch-skeleton` (slide titles + screenshots) | If the VM install fails at 02:00–04:00, the awake pair documents the failure precisely; Schwan fixes on waking at 04:00 (ladder rung 6) |
 
@@ -3895,7 +3995,7 @@ The demo laptop is **not** updated to RC2 before the pitch unless RC2 fixes a bu
 
 ### 8.8 "If we are behind at T, we cut X" ladder
 
-The MVP is fixed (§0, Prompt 1): **licence key entry → scan < 60 s → HTML report with 5 categories (status, evidence, explanation) → one-page PDF with top 3 fixes.** Already cut: live CVE lookups, auto-remediation, cloud backup integrations, non-Windows, scan history. *(Confirm against the Idea Canvas's MVP cut list; if it lists more cuts, add them to rung 0.)*
+The MVP is fixed (§0, Prompt 1): **licence key entry → scan < 60 s → HTML report with 5 categories (status, evidence, explanation) → one-page PDF with top 3 fixes → verifiable `evidence.json` + `--verify` (§2.14).** If behind at 00:00 Day 2, the export button may be cut, but `evidence.json` + `--verify` stay (they are the differentiator). Already cut: live CVE lookups, auto-remediation, cloud backup integrations, non-Windows, scan history. *(Confirm against the Idea Canvas's MVP cut list; if it lists more cuts, add them to rung 0.)*
 
 Cuts happen **in this order** — never skip a rung to cut something more visible.
 
@@ -3986,6 +4086,8 @@ Lines are suggested wording; say them in your own words, but keep the order and 
 | 13:06:50 | Tshedi | "Every rating shows its evidence. Here, Defender real-time protection is off — that's why this is red." | Ransomware protections card | Click / scroll to that card; hover the evidence table |
 | 13:07:20 | Frank | "And this is the one page the owner prints and sticks next to the PC." | PDF one-pager | Click **Open one-page action plan (PDF)** |
 | **13:08:00** | — | **Fallback window closes** (§9.5) | — | — |
+| 13:07:40 | Shakir | "And it's not just a report — it's proof. If the owner sends this to their insurer and changes one red to green…" | Notepad with `evidence.json` | Change `"red"` → `"green"`, save, run `verify.cmd` shortcut |
+| 13:07:55 | Shakir | "…the insurer's free verifier says TAMPERED. Everyone else gives you a report. We give you proof someone else can check." | Terminal: `TAMPERED` | — |
 | 13:08:00 | Shakir | "Three things we tested, not just claimed: a before-and-after snapshot of the whole system shows the scan changes nothing; with all network blocked it runs identically; tampered or expired licence keys are rejected. The test sheet is in our submission." | PDF still on screen, or `security-results` slide | Alt+Tab to slide 7 when Shakir starts |
 | 13:09:00 | Tshedi | Close: who it's for, what's next (signed installer, pilot with 5 local SMMEs), the ask | Slide 8 | — |
 | **13:10:00** | Tshedi | "Thank you — questions?" | Slide 8 | — |
@@ -4070,13 +4172,15 @@ After the pitch: turn Defender real-time protection and Tamper Protection back *
 | Likely question | Who answers | Short honest answer |
 |---|---|---|
 | "Why is the installer unsigned / why did SmartScreen appear?" | Schwan | A trusted signing certificate takes days to issue; signing is the first post-event step. We publish a SHA-256 checksum meanwhile (§5.7, §7.9) |
+| "Can't the owner fake the scan itself?" | Shakir | Yes — the verifier proves the report matches our published rules and wasn't edited, not that the scan came from a real PC. That's honest self-assessment plus tamper-evidence; a trusted collector is our next step (§2.14, §7.10 row 22) |
+| "Why would an insurer trust this?" | Shakir | They don't have to trust us: they run the free verifier, which re-applies our published rules to the measured facts and flags any edit (§2.14) |
 | "Can someone bypass the licence?" | Shakir | Forged and edited keys are rejected (signature check). A determined person could patch the app or roll the clock back — offline licensing can't prevent that; for a free local tool that's acceptable (§7.10 row 9) |
 | "How do you know it's read-only?" | Shakir | Code is limited to an allow-list of read commands, checked automatically; we diffed full system snapshots before/after and watched every file and registry write with Process Monitor — zero writes outside our own report folder (§7.3) |
 | "What data do you collect? POPIA?" | Shakir | System settings only: versions, on/off states, dates. No names, files, emails, IP addresses. Nothing is uploaded; uninstall deletes everything (§7.5) |
 | "What if the PC uses another antivirus?" | Tshedi | We detect it through Windows Security Center and don't penalise the PC for Defender being passive (§2.5.4) |
 | "Why not just use Microsoft Secure Score / Defender?" | Tshedi | Those need Microsoft 365 business licensing and an IT person to read them. We give a non-technical owner three plain-English fixes on one page |
 | "How accurate is the patch check?" | Tshedi | It's a heuristic: newest installed update older than 30 days = amber, 60 = red. It can't see every update type; we say so in the report |
-| "What's next?" | Tshedi | Signed installer, pilot with local SMMEs, multi-PC summary for a whole office *(align with Idea Canvas roadmap)* |
+| "What's next?" | Tshedi | Trusted/attested collector so insurers can trust the scan itself, signed installer, pilot with local SMMEs, multi-PC summary for a whole office *(align with Idea Canvas roadmap)* |
 | "Does it need admin rights?" | Schwan | No. It installs and runs as a normal user; running as administrator just fills in a few more checks (§7.7) |
 
 ### 9.9 Pitch-slot run sheet (one page)
@@ -4368,6 +4472,32 @@ Both files live in `/shared/contract/` (§0.5, §0.8) and are the machine-readab
 
 Rules JSON Schema can't express (checked by `engine/tests/test_integrity.py`, §7.6): every `fix_ids` and `top_fixes` entry exists in `fixes[]`; `overall` equals the worst rated category; red/amber categories have ≥ 1 evidence row and ≥ 1 fix; `top_fixes` follows the §0.8 ranking.
 
+#### A.3 `shared/contract/evidence.schema.json` — engine → relying party
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://antigravity.local/contract/evidence.schema.json",
+  "title": "Antigravity evidence bundle (evidence.json)",
+  "type": "object",
+  "required": ["evidence_version", "run_id", "created_at", "engine_version", "baseline_version",
+               "baseline_sha256", "scan", "report", "scan_sha256", "report_sha256", "evidence_id"],
+  "properties": {
+    "evidence_version": { "type": "string", "pattern": "^1\\.\\d+\\.\\d+$" },
+    "run_id":           { "type": "string" },
+    "created_at":       { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$" },
+    "engine_version":   { "type": "string" },
+    "baseline_version": { "type": "string" },
+    "baseline_sha256":  { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "scan":             { "type": "object" },
+    "report":           { "type": "object" },
+    "scan_sha256":      { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "report_sha256":    { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "evidence_id":      { "type": "string", "pattern": "^AG-[0-9a-f]{12}$" }
+  }
+}
+```
+
 The baseline file has its own schema, `baseline/software-baseline.schema.json` (fields in §2.8).
 
 ### Appendix B — Pinned dependency manifests
@@ -4505,7 +4635,7 @@ antigravity/
 │   ├── contract/
 │   │   ├── scan.schema.json                   [B] Appendix A.1
 │   │   ├── report.schema.json                 [A] Appendix A.2
-│   │   ├── types.ts                           [B] TS types generated from both schemas
+│   │   ├── types.ts                           [B] TS types for scan + evidence schemas (hand-written, drift-tested); report types: A
 │   │   └── CHANGELOG.md                       [B] versions + sign-off record (§8.4 15:30)
 │   ├── fixtures/
 │   │   ├── scan.healthy.json                  [B] §0.7 fixture 1
@@ -4588,7 +4718,8 @@ antigravity/
 │   │   ├── test_fixtures.py                   [A]
 │   │   ├── test_cli.py                        [A]
 │   │   ├── test_render.py                     [A] PDF one page, HTML escaping
-│   │   └── test_integrity.py                  [A] RPT-01..03, 06 (§7.6)
+│   │   ├── test_integrity.py                  [A] RPT-01..03, 06 (§7.6)
+│   │   └── test_evidence.py                   [A] verify / tamper cases (§2.14.4)
 │   ├── build/                         (ign)       PyInstaller work dir
 │   └── dist/engine/                   (ign)       engine.exe + _internal/
 │
@@ -4761,6 +4892,7 @@ Consolidated from §0.3, §2.13, §3.13, §4.14, §5.10 and §7. "Due" refers to
 | A7 | Baseline ≥ 10 entries with real versions and sources | Review | §2.8 | Pre-travel |
 | A8 | No network imports | `Select-String` check | §2.13 | D1 00:00 |
 | A9 | `engine.exe` runs on a machine without Python in < 5 s | Windows Sandbox / VM | §2.12 | D1 23:00 |
+| A10 | `evidence.json` every run; `--verify` passes §2.14.4 | `test_evidence.py`, RPT-11/12 | §2.14 | D2 02:00 |
 
 #### E.2 Brick B — Collector & License (Shakir)
 
@@ -4848,6 +4980,8 @@ Consolidated from §0.3, §2.13, §3.13, §4.14, §5.10 and §7. "Due" refers to
 | **Tamper Protection** | Defender setting that stops other software switching Defender off |
 | **unavailable vs failed** | *unavailable* = we knew we couldn't check (no admin, Home edition); *failed* = we tried and it broke (§0.9) |
 | **WinRE** | Windows Recovery Environment — used to repair or reset a PC that won't start |
+| **Evidence bundle** | `evidence.json`: scan + report + hashes that a third party verifies with `engine.exe --verify` (§2.14) |
+| **Evidence ID** | `AG-` + 12 hex of the report hash, printed on the HTML and PDF so a paper copy can be matched to its bundle |
 | **Zod** | TypeScript library the UI uses to validate `report.json` (§4.9.3) |
 
 ### Appendix G — One-page timeline (print and tape to the table)
@@ -4880,6 +5014,8 @@ Consolidated from §0.3, §2.13, §3.13, §4.14, §5.10 and §7. "Due" refers to
 | **13:00–14:10** | Pitches | §9.9 run sheet. Demo fallback closes at +8 min | — | F1–F4 (§9.5) |
 
 ### Appendix H — Change log (folded into this edition)
+
+**v1.1 (27 Oct 2026) — verifiable evidence bundle added to MVP:** new §2.14; `evidence.json` + `engine.exe --verify` (exit 5/6); Appendix A.3 schema; IPC `report:exportEvidence` and Results "Export evidence for insurer" button (§4.6, §4.9.3); Evidence ID on HTML/PDF; RPT-11/12; threat-model rows 21–22 and claim S6; MVP definition (§8.8), Day 1 night-shift tasks (§8.4), demo script and Q&A (§9.4, §9.8); DoD A10; glossary; folder trees.
 
 The section files were written one prompt at a time. Each later section recorded the changes it needed in earlier ones. **All of them are applied in this consolidated edition** — in the sections named and in the Appendix C tree. They are kept here so the team can see why the text differs from any earlier printout.
 
