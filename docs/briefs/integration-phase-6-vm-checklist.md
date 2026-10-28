@@ -1,11 +1,14 @@
 # Integration Phase 6.4 - clean-VM test (manual 5.9, Brick D checklist D6)
 
-Build under test: `Antigravity-Setup-0.1.0.exe` from tag `v0.1.1-integrated` (main bf7b1f1),
-built on Dev-1 on 28 Oct 2026.
+Build under test: whichever installer the builder hands over (e.g. RC1,
+`Antigravity-Setup-1.0.0.exe`). Fill in before starting, from the builder's report:
 
-- Size: 101,282,538 bytes (96.6 MiB)
-- SHA-256: `B87FF471CD132B58D21C987149FC06D96901174B9E72026B5B7764CCA531B4F9`
-- Files to copy into the VM: `desktop\release\Antigravity-Setup-0.1.0.exe` and
+- Commit built from: ______  Version: ______
+- Size: ______ bytes (expect ~100-150 MB, must be < 200 MB)
+- SHA-256 (from the builder's `SHA256SUMS.txt`): ______
+- Earlier reference build: `Antigravity-Setup-0.1.0.exe` from `v0.1.1-integrated` (bf7b1f1),
+  101,282,538 bytes, SHA-256 B87FF471... (Dev-1, 28 Oct 2026). Do not expect this hash for RC1.
+- Files to copy into the VM: `desktop\release\Antigravity-Setup-<version>.exe` and
   `desktop\release\SHA256SUMS.txt`; for the smoke test also the repo `installer\` folder.
 
 VM: Schwan's Hyper-V VM, Windows 11, no Python/Node/Git, Defender on with real-time
@@ -21,7 +24,7 @@ Fill in Result (PASS / FAIL) and Notes for each step. Steps 1-14 are the minimum
 | 1 | Hyper-V Manager: apply checkpoint `clean-baseline`; start the VM | VM boots to the desktop | | |
 | 2 | VM Settings -> Network Adapter -> Not connected | No network (proves offline operation) | | |
 | 3 | Copy the Setup exe and `SHA256SUMS.txt` into the VM (Enhanced Session clipboard or shared VHD) | Files on the VM desktop | | |
-| 4 | In the VM (cwd: Desktop): `Get-FileHash .\Antigravity-Setup-*.exe -Algorithm SHA256` | `B87FF471...B4F9`, same as `SHA256SUMS.txt` | | |
+| 4 | In the VM (cwd: Desktop): `Get-FileHash .\Antigravity-Setup-*.exe -Algorithm SHA256` | Same hash as `SHA256SUMS.txt` and the builder's report | | |
 | 5 | Log in as the standard user; double-click the installer | Wizard appears; no UAC prompt. SmartScreen may appear -> More info -> Run anyway (manual 5.7) | | |
 | 6 | Accept defaults; finish with "Run Antigravity" ticked. Then `smoke-test.ps1 -Phase AfterInstall` (below) | App opens on the License screen within 5 s; desktop and Start menu shortcuts exist; smoke test passes | | |
 | 7 | Enter the invalid key `AG1.xxx.yyy` | "That doesn't look like an Antigravity key..." | | |
@@ -59,5 +62,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\smoke-test.ps1 -Phase Afte
 
 ## Record
 
-One line in `docs/decisions.md`: date/time, build (v0.1.1-integrated, SHA-256 prefix
-B87FF471), pass/fail, and the step number of any failure.
+One line in `docs/decisions.md`: date/time, build (version, commit, first 8 hex of SHA-256),
+pass/fail, and the step number of any failure.
