@@ -30,7 +30,7 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 | D16 | Licence org in the HTML header | Low | Phase 10 / integration | CHANGED 2026-10-28 (Tshedi) |
 | D17 | Failed protection sub-check shown as unavailable | High | Phase 10 | CHANGED 2026-10-28 (phase-10 RPT-01) |
 | D18 | Backup B4/B5/B7 rows carried no status | High | Phase 10 | CHANGED 2026-10-28 (phase-10 RPT-02) |
-| D19 | Evidence bundle gaps in s2.14 | Medium | Before RPT-11 | OPEN |
+| D19 | Evidence bundle gaps in s2.14 | Medium | Before RPT-11 | DECIDED 2026-10-28 (Tshedi) |
 
 ---
 
@@ -587,7 +587,9 @@ Tests: `test_b4_agent_row_is_amber`, `test_b5_only_the_deciding_rows_are_amber`,
 
 Logged: 2026-10-28, phase 12.
 
-**Status.** OPEN. Each point below is what the code does now.
+**Status.** DECIDED 2026-10-28 by Tshedi: items 1-4, 6 and 7 kept as
+built; item 5 CHANGED when main was merged in. Each point below is what the
+code does.
 
 **1. Baseline hash.** s2.14.1 says "hash of the exact baseline file used".
 Raw bytes differ between an LF checkout (macOS) and a CRLF one (Windows,
