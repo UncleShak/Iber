@@ -2,25 +2,52 @@
 # Stub engine for Brick D isolation testing (AG_STUB=1).
 # Takes --in/--out/--baseline, waits ~1s, writes report.stub.json, evidence.stub.json,
 # and dummy report.html and action-plan.pdf into --out.
-[CmdletBinding()]
-param(
-    [Parameter(Mandatory=$true)]
-    [string]$In,
-    
-    [Parameter(Mandatory=$true)]
-    [string]$Out,
-    
-    [Parameter(Mandatory=$true)]
-    [string]$Baseline,
-
-    [Parameter(Mandatory=$false)]
-    [string]$RunId = "",
-
-    [Parameter(Mandatory=$false)]
-    [string]$Org = ""
-)
+#
+# Arguments are parsed by hand from $args on purpose. The desktop app passes
+# GNU-style flags (--in, --run-id, --org) exactly like the real Python engine.
+# PowerShell's param() binding cannot match hyphenated names such as
+# --run-id ("A parameter cannot be found that matches parameter name
+# '-run-id'"), which made every AG_STUB=1 scan fail with "Analysis failed".
+# Both "--run-id" and "-RunId" spellings are accepted.
 
 $ErrorActionPreference = 'Stop'
+
+$opts = @{}
+$i = 0
+while ($i -lt $args.Count) {
+    $tok = [string]$args[$i]
+    if ($tok -notlike '-*') {
+        [Console]::Error.WriteLine("engine-stub: unexpected argument '$tok'")
+        exit 1
+    }
+    $key = $tok.TrimStart('-').Replace('-', '').ToLowerInvariant()
+    if ($i + 1 -ge $args.Count) {
+        [Console]::Error.WriteLine("engine-stub: missing value for '$tok'")
+        exit 1
+    }
+    $opts[$key] = [string]$args[$i + 1]
+    $i += 2
+}
+
+$known = @('in', 'out', 'baseline', 'runid', 'org')
+foreach ($k in $opts.Keys) {
+    if ($known -notcontains $k) {
+        [Console]::Error.WriteLine("engine-stub: unknown option '$k'")
+        exit 1
+    }
+}
+foreach ($req in @('in', 'out', 'baseline')) {
+    if (-not $opts.ContainsKey($req) -or [string]::IsNullOrWhiteSpace($opts[$req])) {
+        [Console]::Error.WriteLine("engine-stub: --$req is required")
+        exit 1
+    }
+}
+
+$In = $opts['in']
+$Out = $opts['out']
+$Baseline = $opts['baseline']
+$RunId = if ($opts.ContainsKey('runid')) { $opts['runid'] } else { "" }
+$Org = if ($opts.ContainsKey('org')) { $opts['org'] } else { "" }
 
 Start-Sleep -Seconds 1
 

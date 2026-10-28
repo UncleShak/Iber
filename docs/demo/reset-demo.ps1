@@ -1,4 +1,4 @@
-# collector/docs/demo/reset-demo.ps1
+# docs/demo/reset-demo.ps1
 Remove-Item "$env:APPDATA\Antigravity\desktop-app\license.txt" -Force -ErrorAction SilentlyContinue
 Remove-Item "$env:APPDATA\Antigravity\license.txt" -Force -ErrorAction SilentlyContinue
 Remove-Item "$env:LOCALAPPDATA\Antigravity\runs\*" -Recurse -Force -ErrorAction SilentlyContinue
