@@ -40,6 +40,19 @@ const logErr = async (msg: string) => {
   } catch {}
 };
 
+// The Evidence ID is a hash of report.json, so it lives only in evidence.json (manual 2.14.1).
+// Returns it for the Results footer, or undefined if the file is missing or not as expected.
+const readEvidenceId = async (runDir: string): Promise<string | undefined> => {
+  try {
+    const buf = await fs.readFile(path.join(runDir, "evidence.json"));
+    if (buf.length > 4 * 1024 * 1024) return undefined;
+    const id = JSON.parse(buf.toString("utf-8"))?.evidence_id;
+    return typeof id === "string" && /^AG-[0-9a-f]{12}$/.test(id) ? id : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 const getWin = () => BrowserWindow.getAllWindows()[0];
 
 export function registerIpc() {
@@ -136,6 +149,8 @@ export function registerIpc() {
       const buf = await fs.readFile(path.join(runDir, "report.json"));
       if (buf.length > 2 * 1024 * 1024) throw new Error("Report too large");
       const report = JSON.parse(buf.toString("utf-8"));
+      const evidenceId = await readEvidenceId(runDir);
+      if (evidenceId) report.evidence_id = evidenceId;
       progress("done");
       return { ok: true, runId, report, pdfAvailable: eRes.code === 0 };
     } catch (err: any) {

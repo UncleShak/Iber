@@ -364,6 +364,42 @@ describe("Brick D main-process & IPC tests", () => {
       expect(resTimeout).toEqual(expect.objectContaining({ ok: false, stage: "engine" }));
     });
 
+    // evidence: file contents for <run>/evidence.json, or null for no file
+    const runWithEvidence = async (evidence: string | null) => {
+      runProcessMock.mockResolvedValueOnce({ code: 2, timedOut: false, cancelled: false, stderr: "" });
+      registerIpc();
+      const scanRun = handlers.get(IPC.scanRun)!;
+
+      runProcessMock.mockImplementationOnce(async (_cmd: string, _args: string[], opts: any) => {
+        await fs.writeFile(path.join(opts.cwd, "report.json"), JSON.stringify(SAMPLE_REPORT), "utf-8");
+        if (evidence !== null) await fs.writeFile(path.join(opts.cwd, "evidence.json"), evidence, "utf-8");
+        return { code: 0, timedOut: false, cancelled: false, stderr: "" };
+      });
+
+      runProcessMock.mockResolvedValueOnce({ code: 0, timedOut: false, cancelled: false, stderr: "" });
+      return scanRun();
+    };
+
+    it("puts evidence_id from evidence.json on the report so the Results footer can show it", async () => {
+      const res = await runWithEvidence(JSON.stringify({ evidence_id: "AG-0123456789ab" }));
+      expect(res).toEqual(expect.objectContaining({ ok: true }));
+      expect(res.report.evidence_id).toBe("AG-0123456789ab");
+
+      const modPath = "../renderer/src/lib/reportSchema";
+      const { reportSchema } = await import(/* @vite-ignore */ modPath);
+      const parsed = reportSchema.safeParse(res.report);
+      expect(parsed.success).toBe(true);
+      expect(parsed.data.evidence_id).toBe("AG-0123456789ab");
+    });
+
+    it("leaves evidence_id unset when evidence.json is missing, not JSON, or has a malformed ID", async () => {
+      for (const evidence of [null, "{not json", JSON.stringify({ evidence_id: "AG-<b>x</b>" }), JSON.stringify({ evidence_id: 42 })]) {
+        const res = await runWithEvidence(evidence);
+        expect(res).toEqual(expect.objectContaining({ ok: true }));
+        expect(res.report.evidence_id).toBeUndefined();
+      }
+    });
+
     it("renderer reportSchema accepts the engine's exit-2 error report", async () => {
       const modPath = "../renderer/src/lib/reportSchema";
       const { reportSchema } = await import(/* @vite-ignore */ modPath);
