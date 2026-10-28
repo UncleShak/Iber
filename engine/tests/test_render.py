@@ -709,15 +709,11 @@ def test_footer_versions_line_has_os(defender_off):
             f"{html_escape(defender_off['scan']['os_caption'])}") in footer
 
 
-def test_human_date_is_local(monkeypatch):
-    import time
-    monkeypatch.setenv("TZ", "Pacific/Auckland")
-    time.tzset()
-    try:
-        assert html.human_date("2026-11-14T22:30:00Z") == "15 Nov 2026"
-    finally:
-        monkeypatch.delenv("TZ")
-        time.tzset()
+def test_human_date_is_local():
+    # 22:30 UTC on 14 Nov is already 15 Nov at UTC+13 (fixed offset: no tzset on Windows)
+    from datetime import timedelta, timezone
+    nz = timezone(timedelta(hours=13))
+    assert html.human_date("2026-11-14T22:30:00Z", tz=nz) == "15 Nov 2026"
 
 
 def _report_strings(report: dict) -> list[str]:
