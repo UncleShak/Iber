@@ -88,7 +88,11 @@ export default function App() {
             runId={scan.runId}
             pdfAvailable={scan.pdfAvailable}
             license={license}
-            onScanAgain={triggerScan}
+            onScanAgain={() => {
+              setScan(null);
+              setLicense(null);
+              setState("license");
+            }}
           />
         ) : (
           <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-4 text-center">

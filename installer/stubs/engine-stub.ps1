@@ -1,4 +1,4 @@
-﻿# installer/stubs/engine-stub.ps1
+# installer/stubs/engine-stub.ps1
 # Stub engine for Brick D isolation testing (AG_STUB=1).
 # Takes --in/--out/--baseline, waits ~1s, writes report.stub.json, evidence.stub.json,
 # and dummy report.html and action-plan.pdf into --out.
@@ -11,7 +11,13 @@ param(
     [string]$Out,
     
     [Parameter(Mandatory=$true)]
-    [string]$Baseline
+    [string]$Baseline,
+
+    [Parameter(Mandatory=$false)]
+    [string]$RunId = "",
+
+    [Parameter(Mandatory=$false)]
+    [string]$Org = ""
 )
 
 $ErrorActionPreference = 'Stop'

@@ -1,0 +1,57 @@
+# desktop/electron-builder.yml
+appId: com.teamantigravity.cyberhealth
+productName: Antigravity
+copyright: "© 2026 Team Antigravity"
+artifactName: "Antigravity-Setup-${version}.${ext}"
+
+directories:
+  output: release
+  buildResources: resources
+
+files:
+  - "out/**"
+  - "package.json"
+  - "!**/*.map"
+
+asar: true
+
+extraResources:
+  - from: "../engine/dist/engine"
+    to: "engine"
+    filter: ["**/*"]
+  - from: "../collector"
+    to: "collector"
+    filter:
+      - "**/*.ps1"
+      - "!tests/**"
+      - "!mocks/**"
+      - "!docs/**"
+  - from: "../baseline/software-baseline.json"
+    to: "baseline/software-baseline.json"
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: resources/icon.ico
+  requestedExecutionLevel: asInvoker
+  forceCodeSigning: false
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Antigravity
+  runAfterFinish: true
+  deleteAppDataOnUninstall: true
+  include: ../installer/installer.nsh
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
+  uninstallDisplayName: "Antigravity Cyber Health Check"
+
+compression: normal
+publish: null
+npmRebuild: false

@@ -7,7 +7,9 @@ import { paths } from "./paths";
 import { validateRunId, prepareRunFolder } from "./runs";
 import { runCollector } from "./pipeline/runCollector";
 import { runEngine } from "./pipeline/runEngine";
+import { runMockScan } from "./mock";
 import { verifyLicense } from "./license/verify";
+import { verifyPackagedResources } from "./integrity";
 
 let currentAbort: AbortController | null = null;
 
@@ -52,9 +54,11 @@ export function registerIpc() {
 
   ipcMain.handle(IPC.scanRun, async () => {
     if (currentAbort) return { ok: false, runId: "", stage: "collector", message: "A scan is already running." };
+    let licenseOrg = "";
     try {
       const res = verifyLicense((await fs.readFile(paths.licenseFile(), "utf-8")).trim());
       if (!res.ok) return { ok: false, runId: "", stage: "license", message: "License is no longer valid." };
+      licenseOrg = res.org;
     } catch { return { ok: false, runId: "", stage: "license", message: "No valid license found." }; }
 
     const now = new Date();
@@ -68,6 +72,16 @@ export function registerIpc() {
     const progress = (phase: ScanProgress["phase"]) => getWin()?.webContents.send(IPC.scanProgress, { runId, phase, elapsedMs: Date.now() - start });
 
     try {
+      if (paths.mockEnabled()) {
+        const out = await runMockScan((phase, elapsedMs) => getWin()?.webContents.send(IPC.scanProgress, { runId, phase, elapsedMs }), signal);
+        if (!out.ok) return { ok: false, runId, stage: out.stage, message: out.message };
+        return { ok: true, runId: out.runId, report: out.report, pdfAvailable: out.pdfAvailable };
+      }
+      const integrity = verifyPackagedResources();
+      if (!integrity.ok) {
+        await logErr(`Integrity check failed: ${integrity.detail}`);
+        return { ok: false, runId, stage: "collector", message: integrity.message };
+      }
       const runDir = await prepareRunFolder(runId);
       progress("starting");
       const cRes = await runCollector(runDir, runId, (line) => line.startsWith("AG-PHASE:") && progress(line.split(":")[1] as any), signal);
@@ -77,7 +91,7 @@ export function registerIpc() {
         return { ok: false, runId, stage: "collector", message: "System check failed. Details saved to a log file." };
       }
       progress("engine");
-      const eRes = await runEngine(runDir, signal);
+      const eRes = await runEngine(runDir, runId, licenseOrg, signal);
       if (signal.aborted) return { ok: false, runId, stage: "cancelled", message: "Scan cancelled." };
       if (eRes.code !== 0 && eRes.code !== 2 && eRes.code !== 3 || eRes.timedOut) {
         await logErr(`Engine failed: ${eRes.code} ${eRes.stderr}`);
@@ -87,7 +101,7 @@ export function registerIpc() {
       if (buf.length > 2 * 1024 * 1024) throw new Error("Report too large");
       const report = JSON.parse(buf.toString("utf-8"));
       progress("done");
-      return { ok: true, runId, report, pdfAvailable: eRes.code !== 3 };
+      return { ok: true, runId, report, pdfAvailable: eRes.code === 0 };
     } catch (err: any) {
       await logErr(`Scan error: ${err.message}`);
       return { ok: false, runId, stage: "engine", message: "Unexpected error. Details saved to a log file." };

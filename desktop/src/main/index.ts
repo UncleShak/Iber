@@ -6,6 +6,9 @@ import path from "node:path";
 import { registerIpc } from "./ipc";
 
 // One instance only — second launch focuses the existing window.
+// Separate userData subfolder so the app's lockfile and Chromium profile
+// do not collide with the Antigravity IDE's %APPDATA%\Antigravity\lockfile.
+app.setPath("userData", path.join(app.getPath("appData"), "Antigravity", "desktop-app"));
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) { app.quit(); }
 
@@ -25,7 +28,11 @@ function createWindow() {
   });
 
   // Block navigation and new windows — the app is self-contained.
-  win.webContents.on("will-navigate", (e) => e.preventDefault());
+  win.webContents.on("will-navigate", (e, url) => {
+    const devUrl = process.env["ELECTRON_RENDERER_URL"];
+    if (!app.isPackaged && devUrl && url.startsWith(devUrl)) return;
+    e.preventDefault();
+  });
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
 
   // External links open in the default browser, never inside the app.
@@ -34,7 +41,10 @@ function createWindow() {
     return { action: "deny" };
   });
 
-  win.once("ready-to-show", () => win?.show());
+  win.once("ready-to-show", () => {
+    win?.show();
+    win?.focus();
+  });
   win.on("closed", () => { win = null; });
 
   // Dev: Vite dev server. Packaged: built HTML file.

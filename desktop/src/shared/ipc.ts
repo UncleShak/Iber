@@ -18,12 +18,31 @@ export type LicenseState =
   | ValidLicense
   | {
       status: "invalid";
-      reason: "malformed" | "unknown_key" | "bad_signature" | "not_yet_valid" | "expired" | "not_entitled";
+      reason:
+        | "malformed"
+        | "unknown_key"
+        | "bad_signature"
+        | "not_yet_valid"
+        | "expired"
+        | "not_entitled";
     };
 
 export type Phase =
-  | "starting" | "host" | "backup" | "patch" | "software" | "protection" | "recovery" | "engine" | "done";
-export type ScanProgress = { runId: string; phase: Phase; elapsedMs: number };
+  | "starting"
+  | "host"
+  | "backup"
+  | "patch"
+  | "software"
+  | "protection"
+  | "recovery"
+  | "engine"
+  | "done";
+
+export type ScanProgress = {
+  runId: string;
+  phase: Phase;
+  elapsedMs: number;
+};
 
 export type ScanResult =
   | { ok: true; runId: string; report: unknown; pdfAvailable: boolean }
@@ -34,6 +53,13 @@ export type ScanResult =
       message: string;
     };
 
-export type ExportEvidenceResult = { ok: boolean; savedTo?: "user-chosen" };
+export type ExportEvidenceResult = {
+  ok: boolean;
+  savedTo?: "user-chosen";
+};
 
-export type AppInfo = { version: string; isAdmin: boolean; mock: boolean };
+export type AppInfo = {
+  version: string;
+  isAdmin: boolean;
+  mock: boolean;
+};
