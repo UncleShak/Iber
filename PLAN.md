@@ -12,6 +12,16 @@ Each phase is done only when its gate passes and the test output has been shown.
 - [x] 8. HTML report - gate: test_render.py: report.html renders all fixtures; scan.xss.json app name is escaped (autoescape on).
 - [x] 9. PDF one-pager - gate: test_render.py: action-plan.pdf is exactly one page for every fixture.
 - [x] 10. End-to-end + integrity - gate: test_fixtures.py and test_integrity.py pass; every report.json validates against report.schema.json; RPT-01..03, 06 hold.
-- [ ] 11. PyInstaller - gate: engine.spec one-folder build runs --version and a fixture scan on a machine with no Python, in < 5 s.
+- [x] 11. PyInstaller - gate: engine.spec one-folder build runs --version and a fixture scan on a machine with no Python, in < 5 s.
 
 Open judgement calls (spec gaps) and the solutions in code: docs/brick-a-decisions.md. Settle D1-D3 before phase 4.
+
+## Handoff to D
+
+Schwan needs exactly these three things (build and path details: engine/BUILD.md):
+
+1. `engine/dist/engine/` - the whole folder (`engine.exe` + `_internal/`), built from a commit on `main`. Installs to `resources/engine/`.
+2. `baseline/software-baseline.json` - installs to `resources/baseline/`; pass it to the engine with `--baseline`.
+3. `shared/contract/*.schema.json` - the scan/report contract the desktop app reads and writes against.
+
+Phase 11 no-Python check (Windows Sandbox / clean VM) is run by hand with the two commands in engine/BUILD.md.
