@@ -15,8 +15,8 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 | D1 | Per-fix severity | High | Before phase 4 | CHANGED 2026-10-28 (Tshedi) |
 | D2 | "n things to tighten up" count | High | Before phase 4 | CHANGED 2026-10-28 (Tshedi) |
 | D3 | Strict CategoryResult guards | Medium | Before phase 4 | CHANGED 2026-10-28 (Tshedi) |
-| D4 | Error report summary and run_id | Medium | Phase 7 (CLI) | OPEN |
-| D5 | generated_at uses the wall clock | Low | Phase 7 / s2.14 work | OPEN |
+| D4 | Error report summary and run_id | Medium | Phase 7 (CLI) | CHANGED 2026-10-28 (Tshedi) |
+| D5 | generated_at uses the wall clock | Low | Phase 7 / s2.14 work | DECIDED 2026-10-28 (Tshedi) |
 | D6 | Em dash written as an escape | Low | Any time | CHANGED 2026-10-28 (Tshedi) |
 | D7 | Software rule evaluation order | High | Phase 5 | DECIDED 2026-10-28 (phase-5 prompt) |
 | D8 | Run-specific fix steps | Medium | Phase 7 (CLI) | DECIDED 2026-10-28 (Tshedi) |
@@ -149,6 +149,24 @@ report.schema.json, so the realistic risk is small.
 
 ## D4. Error report summary and run_id
 
+**Status.** CHANGED 2026-10-28 by Tshedi. The app's run folder name always
+equals its runId, but scan.json's run_id matches it only when the app
+launched the collector with -RunId. So:
+- new `--run-id ID`: the error report (exit 2) uses it as run_id; an invalid
+  ID is ignored with a stderr warning and the `_0000` fallback stays;
+- a valid scan keeps its own run_id in report.json and evidence.json even if
+  --run-id differs (stderr warning only), because --verify recomputes the
+  report from the embedded scan alone;
+- the error summary is the fixed "We couldn't read the scan results."; the
+  parser detail goes to stderr only.
+Files: `engine/antigravity_engine/__main__.py`, `report_model.py`.
+Tests: `test_run_id_*`, `test_invalid_run_id_is_ignored_with_warning`,
+`test_valid_scan_keeps_its_own_run_id_and_warns_on_mismatch`,
+`test_mismatched_run_id_bundle_still_verifies` (test_cli.py);
+`test_error_report*` (test_aggregator.py).
+
+The original entry follows.
+
 **Gap.** s2.4 step 4 says the error text goes in `summary`; the exact
 wording and what to do when the input has no usable run_id are unstated.
 
@@ -174,6 +192,11 @@ line 1 column 1") is technical for an owner-manager.
 ---
 
 ## D5. generated_at uses the wall clock
+
+**Status.** DECIDED 2026-10-28 by Tshedi: keep the wall clock. --verify
+ignores generated_at (s2.14.2 step 4), and a new Evidence ID per run tells
+two reports of the same scan apart. Tests and fixture regeneration that need
+fixed output pass generated_at or ignore it.
 
 **Gap.** s2.3 says "now" is always `collected_at`, never the wall clock.
 `generated_at` in s0.8 is the time the report was produced.

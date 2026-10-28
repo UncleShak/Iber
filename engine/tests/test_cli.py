@@ -70,7 +70,7 @@ def test_text_file_exits_2_with_all_categories_failed(tmp_path, capsys):
     assert [c["id"] for c in report["categories"]] == list(CATEGORY_ORDER)
     assert all(c["status"] == "failed" for c in report["categories"])
     assert all(c["explanation"] == CONTRACT_ERROR_EXPLANATION for c in report["categories"])
-    assert "not valid JSON" in report["summary"]
+    assert report["summary"] == "We couldn't read the scan results."
     assert report["fixes"] == [] and report["top_fixes"] == []
     assert "not valid JSON" in capsys.readouterr().err
     assert {p.name for p in out.iterdir()} == {"report.json"}
@@ -88,7 +88,7 @@ def test_wrong_major_schema_version_exits_2(tmp_path, make_raw, write_json, caps
 
     report = _report(tmp_path / "out")
     assert set(_statuses(report).values()) == {"failed"}
-    assert "unsupported schema version" in report["summary"]
+    assert "unsupported schema version" not in report["summary"]
     assert "unsupported schema version" in capsys.readouterr().err
 
 
@@ -227,3 +227,54 @@ def test_outdated_app_names_reach_update_steps(tmp_path, make_raw, write_json):
     report = _report(tmp_path / "out")
     fix = next(f for f in report["fixes"] if f["id"] == "update-outdated-apps")
     assert any("Google Chrome" in step for step in fix["steps"])
+
+
+# --- --run-id (D4) ---
+
+APP_RUN_ID = "2026-11-14T18-00-00Z_beef"
+
+
+def test_run_id_names_the_error_report(tmp_path):
+    bad = tmp_path / "scan.txt"
+    bad.write_text("not json", encoding="utf-8")
+    assert _run(bad, tmp_path / "out", "--run-id", APP_RUN_ID) == 2
+    assert _report(tmp_path / "out")["run_id"] == APP_RUN_ID
+
+
+def test_error_report_without_run_id_ends_0000(tmp_path):
+    bad = tmp_path / "scan.txt"
+    bad.write_text("not json", encoding="utf-8")
+    assert _run(bad, tmp_path / "out") == 2
+    assert _report(tmp_path / "out")["run_id"].endswith("_0000")
+
+
+def test_invalid_run_id_is_ignored_with_warning(tmp_path, capsys):
+    bad = tmp_path / "scan.txt"
+    bad.write_text("not json", encoding="utf-8")
+    assert _run(bad, tmp_path / "out", "--run-id", "my-run") == 2
+    assert _report(tmp_path / "out")["run_id"].endswith("_0000")
+    assert "ignoring invalid --run-id 'my-run'" in capsys.readouterr().err
+
+
+def test_valid_scan_keeps_its_own_run_id_and_warns_on_mismatch(tmp_path, capsys):
+    out = tmp_path / "out"
+    assert _run(HEALTHY, out, "--json-only", "--run-id", APP_RUN_ID) == 0
+    scan_run_id = json.loads(HEALTHY.read_text("utf-8"))["run_id"]
+    assert _report(out)["run_id"] == scan_run_id
+    bundle = json.loads((out / "evidence.json").read_text("utf-8"))
+    assert bundle["run_id"] == scan_run_id
+    err = capsys.readouterr().err
+    assert f"--run-id {APP_RUN_ID} differs from scan run_id {scan_run_id}" in err
+
+
+def test_matching_run_id_is_silent(tmp_path, capsys):
+    scan_run_id = json.loads(HEALTHY.read_text("utf-8"))["run_id"]
+    assert _run(HEALTHY, tmp_path / "out", "--json-only", "--run-id", scan_run_id) == 0
+    assert capsys.readouterr().err == ""
+
+
+def test_mismatched_run_id_bundle_still_verifies(tmp_path, capsys):
+    out = tmp_path / "out"
+    assert _run(HEALTHY, out, "--json-only", "--run-id", APP_RUN_ID) == 0
+    baseline = ROOT / "baseline" / "software-baseline.json"
+    assert cli.main(["--verify", str(out / "evidence.json"), "--baseline", str(baseline)]) == 0

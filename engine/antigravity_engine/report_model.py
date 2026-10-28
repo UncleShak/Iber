@@ -10,13 +10,18 @@ from datetime import UTC, datetime
 from antigravity_engine.aggregator import order
 from antigravity_engine.contract import ScanModel
 from antigravity_engine.parser import ContractError, validate_schema
-from antigravity_engine.risk import MAX_SUMMARY
 from antigravity_engine.scoring.result import CATEGORY_ORDER, RATED, CategoryResult, Status
 
 REPORT_SCHEMA_VERSION = "1.0.0"
 REPORT_SCHEMA = "report.schema.json"
 _RUN_ID = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z_[0-9a-f]{4}$")
 CONTRACT_ERROR_EXPLANATION = "This check couldn't run because the scan results couldn't be read."
+# D4: plain English for the owner-manager; the parser detail goes to stderr only.
+CONTRACT_ERROR_SUMMARY = "We couldn't read the scan results."
+
+
+def valid_run_id(run_id: object) -> bool:
+    return isinstance(run_id, str) and _RUN_ID.match(run_id) is not None
 
 
 class ReportError(Exception):
@@ -84,14 +89,14 @@ def build_error_report(
     run_id: str | None = None,
     generated_at: datetime | None = None,
 ) -> dict:
-    """Report written by the CLI on ContractError (s2.4 step 4): all five failed."""
-    ts = _timestamp(generated_at)
-    if not (isinstance(run_id, str) and _RUN_ID.match(run_id)):
-        run_id = ts.strftime("%Y-%m-%dT%H-%M-%SZ") + "_0000"
+    """Report written by the CLI on ContractError (s2.4 step 4): all five failed.
 
-    summary = f"We couldn't read the scan results: {error}" if error else "We couldn't read the scan results."
-    if len(summary) > MAX_SUMMARY:
-        summary = summary[: MAX_SUMMARY - 3] + "..."
+    run_id is the app's run folder name (--run-id, D4); without a valid one the
+    report gets generated_at + "_0000". error stays internal (D4).
+    """
+    ts = _timestamp(generated_at)
+    if not valid_run_id(run_id):
+        run_id = ts.strftime("%Y-%m-%dT%H-%M-%SZ") + "_0000"
 
     categories = [
         CategoryResult.failed(c, error, explanation=CONTRACT_ERROR_EXPLANATION).to_dict()
@@ -104,7 +109,7 @@ def build_error_report(
         "engine_version": engine_version,
         "baseline_version": baseline_version,
         "overall": str(Status.AMBER),
-        "summary": summary,
+        "summary": CONTRACT_ERROR_SUMMARY,
         "categories": categories,
         "fixes": [],
         "top_fixes": [],
