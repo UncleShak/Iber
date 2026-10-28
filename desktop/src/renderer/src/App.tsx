@@ -1,48 +1,53 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import LicenseScreen from "./screens/LicenseScreen";
 import ScanningScreen from "./screens/ScanningScreen";
 import ResultsScreen from "./screens/ResultsScreen";
 import ErrorScreen from "./screens/ErrorScreen";
+import { reportSchema } from "./lib/reportSchema";
 
 type AppState = "license" | "scanning" | "results" | "error";
 
 export default function App() {
   const [currentState, setCurrentState] = useState<AppState>("license");
-  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [reportData, setReportData] = useState<any>(null);
 
-  // Fired when the user clicks "Activate" on the License screen
-  const handleLicenseSuccess = () => {
+  useEffect(() => {
+    window.antigravity.getLicense().then((l: any) => {
+      if (l.status === "valid") {
+        setReportData(null);
+        setCurrentState("results"); 
+      }
+    });
+  }, []);
+
+  const triggerScan = async () => {
     setCurrentState("scanning");
-    
-    // Simulate a scan for 3 seconds since we don't have the backend yet!
-    setTimeout(() => {
-      setCurrentState("results");
-    }, 3000);
-  };
-
-  // Allow users to cancel mid-scan
-  const handleCancel = () => {
-    setErrorMessage("Scan cancelled by user.");
-    setCurrentState("error");
+    const res = await window.antigravity.runScan();
+    if (res.ok) {
+      const parsed = reportSchema.safeParse(res.report);
+      if (parsed.success) {
+        setReportData(parsed.data);
+        setCurrentState("results");
+      } else {
+        console.error(parsed.error);
+        setErrorMessage("The report couldn't be read.");
+        setCurrentState("error");
+      }
+    } else {
+      setErrorMessage(res.message);
+      setCurrentState("error");
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {currentState === "license" && (
-        <LicenseScreen onSuccess={handleLicenseSuccess} />
+    <>
+      {currentState === "license" && <LicenseScreen onSuccess={triggerScan} />}
+      {currentState === "scanning" && <ScanningScreen onCancel={() => { window.antigravity.cancelScan(); setErrorMessage("Scan cancelled."); setCurrentState("error"); }} />}
+      {currentState === "results" && (reportData ? <ResultsScreen report={reportData} onScanAgain={triggerScan} /> : 
+        <div className="flex items-center justify-center h-screen"><button onClick={triggerScan} className="bg-blue-600 text-white px-6 py-3 rounded shadow">Start Scan</button></div>
       )}
-      
-      {currentState === "scanning" && (
-        <ScanningScreen onCancel={handleCancel} />
-      )}
-      
-      {currentState === "results" && (
-        <ResultsScreen report={{ overall: "Amber" }} onScanAgain={() => setCurrentState("scanning")} />
-      )}
-      
-      {currentState === "error" && (
-        <ErrorScreen message={errorMessage} onTryAgain={() => setCurrentState("license")} />
-      )}
-    </div>
+      {currentState === "error" && <ErrorScreen message={errorMessage} onTryAgain={() => setCurrentState("license")} />}
+    </>
   );
 }

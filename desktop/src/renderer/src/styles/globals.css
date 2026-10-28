@@ -1,0 +1,15 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* RAG tokens — the only place status colours are defined */
+@theme {
+  --color-rag-red: #b42318;
+  --color-rag-red-bg: #fef3f2;
+  --color-rag-amber: #b54708;
+  --color-rag-amber-bg: #fffaeb;
+  --color-rag-green: #067647;
+  --color-rag-green-bg: #ecfdf3;
+  --color-rag-grey: #475467;
+  --color-rag-grey-bg: #f2f4f7;
+  --font-sans: "Segoe UI", system-ui, sans-serif;
+}
