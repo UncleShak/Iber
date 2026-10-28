@@ -13,3 +13,11 @@
 
 - Host read failure: no placeholder values. The collector exits 1 with the message "Collector failed".
 - BitLocker COM value `3` (encrypting) → `off`; ASR action `5` → `off`; any other unknown ASR action code → leave that rule out.
+
+## 2026-10-28 · Phase 4 (agreed in plan) · Probes B
+
+- P1 Software: cut name/publisher to 256 and version to 64 characters (schema limits); drop entries whose name is blank after trimming.
+- P2 Patch: hotfix IDs not matching `^KB\d+$` are left out of `hotfixes` but still counted in `hotfix_count`.
+- P3 Admin-only fields (shadow copies, restore points, backup event, WinRE) are set from `Test-AgAdmin`; non-admin → `$null` whatever the reader returns (Win32_ShadowCopy can quietly return 0).
+- P4 Third-party backup agents: vendor names (`Veeam`, `Acronis`, `Macrium`, `Backblaze`, `Carbonite`, `Datto`, `Synology Active Backup`, `CrashPlan`, `IDrive`), no duplicates, in the §3.5 list order.
+- P5 ⚠ verify values (BitLocker COM, File History `ProtectedUpToTime`, System Restore `RPSessionInterval`/`DisableSR`) are checked by hand on a real PC and recorded here.

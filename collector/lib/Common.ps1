@@ -145,3 +145,6 @@ function Read-AgSystemRestore {
     Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore' -ErrorAction SilentlyContinue
 }
 function Read-AgRestorePoints { @(Get-ComputerRestorePoint) }
+function Read-AgPsVersion { $PSVersionTable.PSVersion.ToString() }
+function Read-AgComputerName { $env:COMPUTERNAME }
+function Read-AgHasBitLockerCmdlet { $null -ne (Get-Command Get-BitLockerVolume -ErrorAction SilentlyContinue) }

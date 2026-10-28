@@ -1,11 +1,21 @@
-﻿# Phase 2 tests for tests/Test-ReadOnly.ps1 (manual 3.7), run in child processes against temp mini-roots
+﻿# Phase 2 tests for tests/Test-ReadOnly.ps1 (manual 3.7). Most cases call Invoke-AgReadOnlyScan in-process; the cases listed in $childCases run the real guard in a child powershell.exe
 $ErrorActionPreference = 'Stop'
 $collRoot = Split-Path -Parent $PSScriptRoot
 $guard = Join-Path $PSScriptRoot 'Test-ReadOnly.ps1'
+. $guard -NoRun    # defines Invoke-AgReadOnlyScan only
+$script:CurrentCase = $null
+# Cases that run the real guard as a child process (exit code, exact stdout, stderr, parse error, empty roots, leaks).
+$childCases = @(
+    'Real collector passes with exactly READ-ONLY OK', 'Verb Set- is flagged (Set-ItemProperty)', 'Cmdlet flagged: Invoke-WebRequest',
+    'Literal in string: Win32_Product', 'Parse error fails', 'Bad files under tests and mocks are ignored',
+    'Root below a parent folder named tests is still scanned', 'Root with no .ps1 files fails',
+    'Root with only tests and mocks scripts fails', 'Failure output has no absolute root path and no user name'
+)
 
 $script:passed = 0
 $script:failed = 0
 function Test-Case([string]$Name, [scriptblock]$Body) {
+    $script:CurrentCase = $Name
     try {
         & $Body | Out-Null
         Write-Output "PASS $Name"
@@ -36,9 +46,16 @@ function Write-TestFile([string]$Root, [string]$Rel, [string]$Content) {
     [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($p))
     [IO.File]::WriteAllText($p, $Content, (New-Object Text.UTF8Encoding $false))
 }
+function Invoke-GuardInProc([string]$Root) {
+    try { $lines = @(Invoke-AgReadOnlyScan $Root); $code = 0 } catch { $lines = @('guard internal error'); $code = 1 }
+    if ($code -eq 0 -and $lines.Count -gt 0) { $code = 1 }
+    if ($code -eq 0) { $lines = @('READ-ONLY OK') }
+    [pscustomobject]@{ Code = $code; Lines = $lines; Text = ($lines -join "`n"); Err = '' }
+}
 function Invoke-Guard([string]$Root) {
     Assert-Run
-    Invoke-Native @('-NoProfile', '-File', $guard, '-Root', $Root)
+    if ($childCases -contains $script:CurrentCase) { return (Invoke-Native @('-NoProfile', '-File', $guard, '-Root', $Root)) }
+    Invoke-GuardInProc $Root
 }
 # Runs the guard on a temp root holding the given files (relative path -> content). Returns the result.
 function Invoke-GuardOn([hashtable]$Files, [string]$SubRoot = '') {

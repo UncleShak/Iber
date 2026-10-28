@@ -3,7 +3,7 @@
 # A strict superset of the manual's 3.7 snippet. Everything is an allowlist: commands, types, methods, cmdlet
 # arguments and dynamic call sites must be listed or pinned below; anything else is a violation.
 # Output is relative paths only (no absolute paths, no user names); names containing \ / : print as <redacted>.
-param([string]$Root = (Join-Path $PSScriptRoot '..'))
+param([string]$Root = (Join-Path $PSScriptRoot '..'), [switch]$NoRun)    # -NoRun: only define Invoke-AgReadOnlyScan (used by Test-ReadOnlyGuard.ps1)
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\lib\Allowlist.ps1')     # the real allowlist, never one found under -Root
 
@@ -13,7 +13,7 @@ $ErrorActionPreference = 'Stop'
 # =====================================================================================================
 
 # Probe entry points called by collector.ps1 that Phases 3 and 4 will define. Delete names as they are defined.
-$AgPendingProbes = @('Get-AgHost', 'Get-AgBackup', 'Get-AgPatch', 'Get-AgSoftware', 'Get-AgProtection', 'Get-AgRecovery')
+$AgPendingProbes = @('Get-AgBackup', 'Get-AgPatch', 'Get-AgSoftware', 'Get-AgRecovery')
 
 # Type literals allowed anywhere (lower-case, without "System." prefix, without []).
 $AgAllowedTypes = @(
@@ -427,8 +427,34 @@ function Test-ExecChain($V, [string]$Rel) {
     return ((Get-NormText $top) -ceq $AgExecChain)
 }
 
-try {
-    if (-not [IO.Directory]::Exists($Root)) { Write-Output 'Root folder not found'; exit 1 }
+# ---- real-command lookup, batched and cached (one Get-Command per scan for names not seen before) ----
+if ($null -eq $script:AgCmdCache) { $script:AgCmdCache = @{} }
+function Initialize-AgCommandCache([string[]]$Names) {
+    $todo = @($Names | Where-Object { -not $script:AgCmdCache.ContainsKey($_.ToLowerInvariant()) } | Sort-Object -Unique)
+    if ($todo.Count -eq 0) { return }
+    $plain = @($todo | Where-Object { $_ -notmatch '[\*\?\[\]]' })
+    foreach ($w in @($todo | Where-Object { $_ -match '[\*\?\[\]]' })) {   # wildcard characters: look up on their own, as before
+        $script:AgCmdCache[$w.ToLowerInvariant()] = [bool](Get-Command -Name $w -CommandType Cmdlet, Alias, Application -ErrorAction SilentlyContinue)
+    }
+    if ($plain.Count -eq 0) { return }
+    $found = @{}
+    foreach ($c in @(Get-Command -Name $plain -CommandType Cmdlet, Alias, Application -ErrorAction SilentlyContinue)) {
+        $found[$c.Name.ToLowerInvariant()] = $true
+        $found[[IO.Path]::GetFileNameWithoutExtension($c.Name).ToLowerInvariant()] = $true   # an Application is found by its name without .exe
+    }
+    foreach ($n in $plain) { $script:AgCmdCache[$n.ToLowerInvariant()] = $found.ContainsKey($n.ToLowerInvariant()) }
+}
+function Test-AgRealCommand([string]$Name) {
+    $k = $Name.ToLowerInvariant()
+    if (-not $script:AgCmdCache.ContainsKey($k)) { Initialize-AgCommandCache @($Name) }
+    return $script:AgCmdCache[$k]
+}
+
+# Scans $Root and returns the violation lines (an empty array means READ-ONLY OK). Never writes output and never exits.
+function Invoke-AgReadOnlyScan([string]$Root) {
+    $script:violations = New-Object 'System.Collections.Generic.List[string]'
+    $script:VarSrc = @{}; $script:CmdVar = @{}; $script:FuncAssigned = @{}
+    if (-not [IO.Directory]::Exists($Root)) { return @('Root folder not found') }
     $rootFull = (Resolve-Path -LiteralPath $Root).ProviderPath.TrimEnd('\', '/') + '\'
 
     # collect files, excluding tests\ and mocks\ by path relative to Root
@@ -440,7 +466,7 @@ try {
         if ($rel.Contains('\') -and ($first -ieq 'tests' -or $first -ieq 'mocks')) { continue }
         $files += [pscustomobject]@{ Full = $f.FullName; Rel = $rel }
     }
-    if ($files.Count -eq 0) { Write-Output 'no scripts found to check'; exit 1 }
+    if ($files.Count -eq 0) { return @('no scripts found to check') }
 
     # parse everything; gather own functions (with locations) and own types
     $ownFunctions = @{}
@@ -461,6 +487,7 @@ try {
         }
         foreach ($td in $ast.FindAll({ $args[0] -is [TypeDefinitionAst] }, $true)) { $ownTypes[$td.Name.ToLowerInvariant()] = $true }
     }
+    Initialize-AgCommandCache @($defs.Values | ForEach-Object { $_ } | ForEach-Object { $_.Name })   # one batched lookup for the whole scan
     # duplicate definitions; single-definition functions only in the Common file
     foreach ($k in $defs.Keys) {
         $list = @($defs[$k])
@@ -488,7 +515,7 @@ try {
             $verb = $n.Split('-')[0]
             if ($n.Contains('-') -and $AgBadVerbs -contains $verb) { Write-Violation $rel $ln ('function with forbidden verb defined: ' + (Get-SafeName $n)) }
             elseif ($n -ieq 'Invoke-WebRequest' -or $n -ieq 'Invoke-RestMethod') { Write-Violation $rel $ln ('function with forbidden name defined: ' + (Get-SafeName $n)) }
-            elseif (Get-Command -Name $n -CommandType Cmdlet, Alias, Application -ErrorAction SilentlyContinue) {
+            elseif (Test-AgRealCommand $n) {
                 Write-Violation $rel $ln ('function shadows a real command: ' + (Get-SafeName $n))
             }
         }
@@ -665,13 +692,19 @@ try {
             Write-Violation $rel (Get-LineOf $raw $m.Index) ('forbidden literal: ' + ($m.Value -replace '\s+', ' '))
         }
     }
+
+    return @($script:violations | Sort-Object -Unique)
+}
+
+if ($NoRun) { return }
+try {
+    $lines = @(Invoke-AgReadOnlyScan $Root)
 } catch {
     Write-Output 'guard internal error'
     exit 1
 }
-
-if ($script:violations.Count -gt 0) {
-    foreach ($v in @($script:violations | Sort-Object -Unique)) { Write-Output $v }
+if ($lines.Count -gt 0) {
+    foreach ($l in $lines) { Write-Output $l }
     exit 1
 }
 Write-Output 'READ-ONLY OK'
