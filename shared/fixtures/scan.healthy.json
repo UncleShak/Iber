@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "2026-11-14T16-42-07Z_0001",
+  "collected_at": "2026-11-14T16:42:07Z",
+  "collector_version": "0.1.0",
+  "duration_ms": 8420,
+  "host": { "hostname_hash": "sha256:1111", "os_caption": "Microsoft Windows 11 Pro", "os_build": "22631", "os_edition": "Professional", "is_admin": true, "ps_version": "5.1.22621.4391" },
+  "backup": { "status": "ok", "error": null, "file_history_enabled": true, "file_history_last_backup": "2026-11-13T22:00:00Z", "windows_backup_last_success": null, "onedrive_kfm_folders": ["Desktop", "Documents", "Pictures"], "shadow_copy_count": 3, "third_party_agents": [] },
+  "patch": { "status": "ok", "error": null, "hotfix_count": 14, "latest_hotfix_installed_on": "2026-11-05", "days_since_latest_hotfix": 9, "hotfixes": [ { "kb": "KB5044285", "installed_on": "2026-11-05" }, { "kb": "KB5043080", "installed_on": "2026-10-09" } ], "pending_reboot": false },
+  "software": { "status": "ok", "error": null, "installed": [ { "name": "Google Chrome", "version": "131.0.6778.86", "publisher": "Google LLC" }, { "name": "Adobe Acrobat Reader", "version": "24.4.20220", "publisher": "Adobe" }, { "name": "7-Zip", "version": "24.08", "publisher": "Igor Pavlov" } ] },
+  "protection": {
+    "bitlocker": { "status": "ok", "error": null, "os_volume_protection": "on", "os_volume_encryption_pct": 100, "encryption_method": "XtsAes128" },
+    "defender": { "status": "ok", "error": null, "antivirus_enabled": true, "realtime_enabled": true, "tamper_protected": true, "signature_age_days": 0, "third_party_av": null },
+    "cfa": { "status": "ok", "error": null, "mode": "enabled" },
+    "asr": { "status": "ok", "error": null, "rules": [ { "id": "d4f940ab-401b-4efc-aadc-ad5f3c50688a", "action": "block" }, { "id": "c1db55ab-c21a-4637-bb3f-a12568109d35", "action": "block" }, { "id": "be9ba2d9-53ea-4cdc-84e5-9b1eeee46550", "action": "block" } ] }
+  },
+  "recovery": { "status": "ok", "error": null, "winre_enabled": true, "system_restore_enabled": true, "restore_point_count": 2, "latest_restore_point": "2026-11-10T09:12:00Z" }
+}

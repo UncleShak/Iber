@@ -7,6 +7,7 @@ import { paths } from "./paths";
 import { validateRunId, prepareRunFolder } from "./runs";
 import { runCollector } from "./pipeline/runCollector";
 import { runEngine } from "./pipeline/runEngine";
+import { runMockScan } from "./mock";
 import { verifyLicense } from "./license/verify";
 
 let currentAbort: AbortController | null = null;
@@ -68,6 +69,11 @@ export function registerIpc() {
     const progress = (phase: ScanProgress["phase"]) => getWin()?.webContents.send(IPC.scanProgress, { runId, phase, elapsedMs: Date.now() - start });
 
     try {
+      if (paths.mockEnabled()) {
+        const out = await runMockScan((phase, elapsedMs) => getWin()?.webContents.send(IPC.scanProgress, { runId, phase, elapsedMs }), signal);
+        if (!out.ok) return { ok: false, runId, stage: out.stage, message: out.message };
+        return { ok: true, runId: out.runId, report: out.report, pdfAvailable: out.pdfAvailable };
+      }
       const runDir = await prepareRunFolder(runId);
       progress("starting");
       const cRes = await runCollector(runDir, runId, (line) => line.startsWith("AG-PHASE:") && progress(line.split(":")[1] as any), signal);

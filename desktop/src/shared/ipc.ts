@@ -1,6 +1,4 @@
-// IPC contract shared across main, preload, and renderer layers.
-// Channel names and payload shapes are strictly pinned to prevent boundary drift.
-
+// desktop/src/shared/ipc.ts  (manual §4.6) — channel names + payload types shared by main, preload, renderer
 export const IPC = {
   licenseGet: "license:get",
   licenseSubmit: "license:submit",
@@ -13,9 +11,11 @@ export const IPC = {
   appInfo: "app:info",
 } as const;
 
+export type ValidLicense = { status: "valid"; lic: string; org: string; exp: number };
+
 export type LicenseState =
   | { status: "none" }
-  | { status: "valid"; lic: string; org: string; exp: number }
+  | ValidLicense
   | {
       status: "invalid";
       reason:
