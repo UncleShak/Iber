@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 
 Write-Host '0/7 Contract check';    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\contract-check.ps1"; if ($LASTEXITCODE) { exit 1 }
-Write-Host '1/7 Engine tests';      & "$root\engine\.venv\Scripts\python.exe" -m pytest -q "$root\engine\tests"; if ($LASTEXITCODE) { exit 1 }
+Write-Host '1/7 Engine tests';      Push-Location "$root\engine"; & .venv\Scripts\python.exe -m pytest -q tests; $c=$LASTEXITCODE; Pop-Location; if ($c) { exit 1 }
 # The installer targets x64 only; an ARM64 venv would silently produce an ARM64 engine.exe.
 $arch = & "$root\engine\.venv\Scripts\python.exe" -c "import platform; print(platform.machine())"
 if ($LASTEXITCODE -or "$arch".Trim() -ne 'AMD64') { Write-Host "engine venv is not x64 (platform.machine() = '$arch')"; exit 1 }
