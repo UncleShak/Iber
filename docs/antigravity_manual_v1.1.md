@@ -230,7 +230,7 @@ Every command block starts with a comment stating the working directory, e.g. `#
 ### 0.5 Input contract: collector → engine
 
 - **File:** `scan.json`, UTF-8, no BOM. Written by the collector to `%LOCALAPPDATA%\Antigravity\runs\<run_id>\scan.json`.
-- **Schema:** `/shared/contract/scan.schema.json` (JSON Schema draft 2020-12). TypeScript types hand-written in `/shared/contract/types.ts`, kept in step with the schemas by `shared/contract/tests/`; Python mirrors in `/engine/antigravity_engine/contract.py`.
+- **Schema:** `/shared/contract/scan.schema.json` (JSON Schema draft 2020-12). TypeScript types generated into `/shared/contract/types.ts`; Python mirrors in `/engine/antigravity_engine/contract.py`.
 - **Version:** `schema_version` follows semver. Engine rejects a different **major** version.
 - **POPIA-minimal:** no usernames, no file names, no IP/MAC addresses, no serial numbers. Hostname is stored only as a salted SHA-256 hash. Nothing leaves the machine.
 
@@ -242,7 +242,7 @@ Annotated contract (comments for reading only — real files are strict JSON):
   "run_id": "2026-11-14T16-42-07Z_7f3a", // UTC timestamp + 4 hex; also the run folder name
   "collected_at": "2026-11-14T16:42:07Z",// ISO-8601 UTC, when collection finished
   "collector_version": "0.1.0",          // collector.ps1 $Version
-  "duration_ms": 8420,                   // total collection time; collector target < 60000 (not enforced by the schema)
+  "duration_ms": 8420,                   // total collection time; must stay < 60000
 
   "host": {
     "hostname_hash": "sha256:9c1e…",     // salted hash — never the raw hostname
@@ -352,7 +352,7 @@ Category key: **1** Backup · **2** Patch · **3** Software · **4** Protections
 | `backup.shadow_copy_count` | integer\|null | ✅ | `3` | VSS snapshots | 1, 5 |
 | `backup.third_party_agents` | string[] | ✅ | `["Veeam Agent"]` | Known backup services detected | 1 |
 | `patch.status` / `.error` | enum / string\|null | ✅ | `"ok"` / `null` | §0.9 | 2 |
-| `patch.hotfix_count` | integer\|null | ✅ | `14` | Installed hotfixes | 2 |
+| `patch.hotfix_count` | integer | ✅ | `14` | Installed hotfixes | 2 |
 | `patch.latest_hotfix_installed_on` | string (date)\|null | ✅ | `"2026-11-05"` | Newest hotfix date | 2 |
 | `patch.days_since_latest_hotfix` | integer\|null | ✅ | `9` | Drives 30/60-day heuristic | 2 |
 | `patch.hotfixes[]` | object[] (`kb`, `installed_on`) | ✅ | see §0.5 | Evidence rows (max 10) | 2 |
@@ -405,7 +405,7 @@ Save each as `/shared/fixtures/scan.<name>.json`. These are the only inputs bric
 }
 ```
 
-**Fixture 2 — `scan.no-bitlocker.json`** (expected: Protections red; others green). Same ratings as Fixture 1 except `protection.bitlocker` (off). Other fields are shortened sample values:
+**Fixture 2 — `scan.no-bitlocker.json`** (expected: Protections red; others green). Differs from Fixture 1 only in `run_id` and `protection.bitlocker`:
 
 ```json
 {
@@ -4635,7 +4635,7 @@ antigravity/
 │   ├── contract/
 │   │   ├── scan.schema.json                   [B] Appendix A.1
 │   │   ├── report.schema.json                 [A] Appendix A.2
-│   │   ├── types.ts                           [B] TS types for scan + evidence schemas (hand-written, drift-tested); report types: A
+│   │   ├── types.ts                           [B] TS types generated from both schemas
 │   │   └── CHANGELOG.md                       [B] versions + sign-off record (§8.4 15:30)
 │   ├── fixtures/
 │   │   ├── scan.healthy.json                  [B] §0.7 fixture 1

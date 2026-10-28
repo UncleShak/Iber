@@ -1,0 +1,189 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "2026-11-14T16-50-11Z_0002",
+  "generated_at": "2026-10-28T00:27:46Z",
+  "engine_version": "0.1.0",
+  "baseline_version": "2026-10-27",
+  "overall": "red",
+  "summary": "1 urgent issue needs attention this week.",
+  "categories": [
+    {
+      "id": "backup",
+      "title": "Backup evidence",
+      "status": "green",
+      "explanation": "Your newest backup finished 1 day ago. Keep backing up at least weekly.",
+      "evidence": [
+        {
+          "label": "File History last backup",
+          "value": "13 Nov 2026 (1 day ago)",
+          "status": "green"
+        },
+        {
+          "label": "Windows Backup",
+          "value": "No completed backup found"
+        },
+        {
+          "label": "Backup programs found",
+          "value": "None"
+        },
+        {
+          "label": "OneDrive folder sync",
+          "value": "Desktop, Documents, Pictures (sync, not a backup)"
+        },
+        {
+          "label": "Shadow copies",
+          "value": "3 snapshots (not a backup)"
+        }
+      ],
+      "fix_ids": []
+    },
+    {
+      "id": "patch",
+      "title": "Patch status",
+      "status": "green",
+      "explanation": "Windows updates are current: the newest was installed 9 days ago.",
+      "evidence": [
+        {
+          "label": "Newest Windows update",
+          "value": "5 Nov 2026 (9 days ago), KB5044285",
+          "status": "green"
+        },
+        {
+          "label": "Updates installed",
+          "value": "14 updates"
+        },
+        {
+          "label": "Restart needed to finish updates",
+          "value": "No",
+          "status": "green"
+        },
+        {
+          "label": "Windows version",
+          "value": "Microsoft Windows 11 Pro (build 22631)",
+          "status": "green"
+        }
+      ],
+      "fix_ids": []
+    },
+    {
+      "id": "software",
+      "title": "Outdated software",
+      "status": "green",
+      "explanation": "The 1 program on our watch list is up to date.",
+      "evidence": [
+        {
+          "label": "Google Chrome",
+          "value": "142.0.7444.175, up to date",
+          "status": "green"
+        },
+        {
+          "label": "Other programs",
+          "value": "0 other apps not on our watch list"
+        }
+      ],
+      "fix_ids": []
+    },
+    {
+      "id": "protection",
+      "title": "Ransomware protections",
+      "status": "red",
+      "explanation": "The hard drive isn't encrypted, so anyone who steals the PC can read your files. 1 other protection also needs attention.",
+      "evidence": [
+        {
+          "label": "Antivirus",
+          "value": "Microsoft Defender on and up to date",
+          "status": "green"
+        },
+        {
+          "label": "Drive encryption",
+          "value": "BitLocker is off",
+          "status": "red"
+        },
+        {
+          "label": "Controlled folder access",
+          "value": "On",
+          "status": "green"
+        },
+        {
+          "label": "Anti-ransomware rules",
+          "value": "1 of 3 recommended rules on",
+          "status": "amber"
+        }
+      ],
+      "fix_ids": [
+        "turn-on-bitlocker",
+        "enable-asr-rules"
+      ]
+    },
+    {
+      "id": "recovery",
+      "title": "Recovery readiness",
+      "status": "green",
+      "explanation": "The Windows recovery tools and System Restore are on, with a restore point from 4 days ago.",
+      "evidence": [
+        {
+          "label": "Windows recovery tools",
+          "value": "On",
+          "status": "green"
+        },
+        {
+          "label": "System Restore",
+          "value": "On",
+          "status": "green"
+        },
+        {
+          "label": "Restore points",
+          "value": "2",
+          "status": "green"
+        },
+        {
+          "label": "Newest restore point",
+          "value": "10 Nov 2026 (4 days ago)",
+          "status": "green"
+        }
+      ],
+      "fix_ids": []
+    }
+  ],
+  "fixes": [
+    {
+      "id": "turn-on-bitlocker",
+      "category": "protection",
+      "severity": "red",
+      "title": "Encrypt this PC's hard drive with BitLocker",
+      "why": "If the PC is lost or stolen, encryption stops anyone reading your business files.",
+      "steps": [
+        "Click Start, type BitLocker and open Manage BitLocker.",
+        "Next to the C: drive, click Turn on BitLocker.",
+        "Save the recovery key to your Microsoft account or print it, and keep it somewhere safe.",
+        "Choose to encrypt the used disk space only, then Start encrypting.",
+        "Keep the PC switched on and plugged in until it finishes."
+      ],
+      "effort_minutes": 20,
+      "needs_admin": true
+    },
+    {
+      "id": "enable-asr-rules",
+      "category": "protection",
+      "severity": "amber",
+      "title": "Switch on Defender's anti-ransomware rules",
+      "why": "These rules block common tricks ransomware uses, such as harmful email attachments.",
+      "steps": [
+        "Ask your IT helper to turn on Microsoft Defender's Attack Surface Reduction rules.",
+        "Ask for the ransomware-related rules to be set to Block.",
+        "Use the PC as normal for a day and report anything that stops working."
+      ],
+      "effort_minutes": 15,
+      "needs_admin": true
+    }
+  ],
+  "top_fixes": [
+    "turn-on-bitlocker",
+    "enable-asr-rules"
+  ],
+  "scan": {
+    "is_admin": true,
+    "duration_ms": 9105,
+    "os_caption": "Microsoft Windows 11 Pro"
+  }
+}
