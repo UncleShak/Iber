@@ -10,7 +10,7 @@ Standalone: python -m antigravity_engine.render.html report.json report.html
 import json
 import sys
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
@@ -22,11 +22,12 @@ TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
 TEMPLATE = "report.html.j2"
 
 PRODUCT = "Antigravity"
+TOP_FIXES_MAX = 3
 NOT_CHECKED = "Not checked"
 COULDNT_READ = "Couldn't read:"
 EM_DASH = "\u2014"
 
-# s4.3 RAG tokens; the only hex values the template may use.
+# s4.3 RAG tokens; the only hex values the template may use (spec s2 CSS names).
 RAG_COLOURS = {
     "red": "#b42318",
     "red-bg": "#fef3f2",
@@ -64,9 +65,18 @@ def evidence_value(row: dict) -> str:
 
 
 def human_date(stamp: str) -> str:
-    """"2026-11-14T17:02:46Z" -> "14 Nov 2026" (s0.8 date style, no %-d on Windows)."""
-    dt = datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ")
+    """"2026-11-14T17:02:46Z" -> "14 Nov 2026" in the PC's local date (s0.8 date style).
+
+    generated_at is UTC; the reader expects the day it was on their own clock.
+    No %-d, which Windows strftime does not support.
+    """
+    dt = datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC).astimezone()
     return f"{dt.day} {dt:%b %Y}"
+
+
+def top_fixes_heading(count: int) -> str:
+    """"Your top 3 fixes", "Your top 2 fixes" or "Your top fix" (wording spec s3.2)."""
+    return "Your top fix" if count == 1 else f"Your top {count} fixes"
 
 
 def _env() -> Environment:
@@ -78,7 +88,8 @@ def _env() -> Environment:
         trim_blocks=True,
         lstrip_blocks=True,
     )
-    env.globals.update(badge=badge, rag=RAG_COLOURS, product=PRODUCT)
+    env.globals.update(badge=badge, rag=RAG_COLOURS, product=PRODUCT,
+                       top_fixes_heading=top_fixes_heading)
     env.filters.update(evidence_value=evidence_value, human_date=human_date)
     return env
 
@@ -90,10 +101,11 @@ def render_string(report: dict, org: str | None = None, evidence_id: str | None 
     passed in, never stored in the report; omitted if None.
     """
     fixes = {f["id"]: f for f in report["fixes"]}
-    rank = {fix_id: n for n, fix_id in enumerate(report["top_fixes"], start=1)}
-    titles = {c["id"]: c["title"] for c in report["categories"]}
+    top_fixes = report["top_fixes"][:TOP_FIXES_MAX]
+    rank = {fix_id: n for n, fix_id in enumerate(top_fixes, start=1)}
     return _env().get_template(TEMPLATE).render(
-        report=report, fixes=fixes, rank=rank, titles=titles, org=org, evidence_id=evidence_id
+        report=report, fixes=fixes, top_fixes=top_fixes, rank=rank, org=org,
+        evidence_id=evidence_id,
     )
 
 

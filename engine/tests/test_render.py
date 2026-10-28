@@ -107,7 +107,9 @@ def test_xss_app_name_is_escaped_wherever_the_report_carries_it(baseline):
     assert "<script>alert" not in page
     assert "<img src=x" not in page
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in page
-    assert page.count("&lt;script&gt;alert(1)") == 5
+    # summary, org, evidence label and value, and the step in both the top
+    # fixes and the category's own fix block
+    assert page.count("&lt;script&gt;alert(1)") == 6
 
 
 # --- RAG tokens and badges (s4.3, s4.9.3) ---
@@ -125,7 +127,7 @@ def test_exact_s4_3_hex_values():
 def test_page_uses_only_token_hexes_for_rag(defender_off):
     page = html.render_string(defender_off)
     for name, hex_value in html.RAG_COLOURS.items():
-        assert f"--rag-{name}: {hex_value};" in page
+        assert f"--{name}: {hex_value};" in page
 
 
 @pytest.mark.parametrize(
@@ -192,7 +194,9 @@ def test_top_fixes_numbered_in_report_order(defender_off):
     actions = page[page.index('<section id="actions">') : page.index('<section id="overview">')]
     expected = [f["title"] for fid in defender_off["top_fixes"]
                 for f in defender_off["fixes"] if f["id"] == fid]
-    found = re.findall(r'<span class="rank">(\d)</span>\s*<div>\s*<h3>(.*?) <span', actions)
+    found = re.findall(
+        r'<span class="rank" aria-hidden="true">(\d)</span>\s*<div class="fix-body">\s*'
+        r'<h3><span class="sr">Fix \d: </span>(.*?) <span', actions)
     assert [int(n) for n, _ in found] == list(range(1, len(expected) + 1))
     assert [t for _, t in found] == [html_escape(t) for t in expected]
 
@@ -264,7 +268,7 @@ def test_failed_value_gets_couldnt_read_prefix(defender_off):
     report["categories"][3]["evidence"][0].update(value="Cmdlet threw", status="failed")
     row = _rows(_section(html.render_string(report), "protection"))[0]
     assert '<td class="grey">Couldn&#39;t read: Cmdlet threw</td>' in row
-    assert "\u2715</span> Check failed" in row
+    assert '\u2715</span><span class="sr"> Check failed</span>' in row
     assert "Not checked" not in row
 
 
@@ -273,7 +277,7 @@ def test_rated_row_shows_coloured_symbol_and_normal_text(defender_off):
     red = [r for r in rows if "state-red" in r]
     assert red
     for r in red:
-        assert "\u25cf</span> Act now" in r
+        assert '\u25cf</span><span class="sr"> Act now</span>' in r
         assert 'class="grey"' not in r
 
 
@@ -503,17 +507,32 @@ def test_pdf_shows_four_steps_then_see_full_report(defender_off, tmp_path, monke
     fix = next(f for f in report["fixes"] if f["id"] == report["top_fixes"][0])
     fix["steps"] = [f"Step {n}" for n in range(1, 7)]
     drawn = _drawn_strings(report, tmp_path, monkeypatch)
-    assert [s for s in drawn if s.startswith(("1. Step", "4. Step"))] == ["1. Step 1", "4. Step 4"]
-    assert "5. Step 5" not in drawn
+    # wording spec s4.3: more than 4 steps -> the fourth line becomes the pointer
+    assert [s for s in drawn if s.startswith(("1. Step", "3. Step"))] == ["1. Step 1", "3. Step 3"]
+    assert "4. Step 4" not in drawn
     assert pdf.MORE_STEPS in drawn
 
 
+def test_pdf_shows_exactly_four_steps_without_pointer(defender_off, tmp_path, monkeypatch):
+    report = copy.deepcopy(defender_off)
+    for f in report["fixes"]:
+        f["steps"] = [f"Step {n}" for n in range(1, 5)]
+    drawn = _drawn_strings(report, tmp_path, monkeypatch)
+    assert "4. Step 4" in drawn
+    assert pdf.MORE_STEPS not in drawn
+
+
 def test_pdf_draws_top_fixes_in_report_order(defender_off, tmp_path, monkeypatch):
+    ranks = []
+    real = pdf.canvas.Canvas.drawCentredString
+    monkeypatch.setattr(pdf.canvas.Canvas, "drawCentredString",
+                        lambda self, x, y, text, *a, **k: (ranks.append(text),
+                                                           real(self, x, y, text, *a, **k))[1])
     drawn = _drawn_strings(defender_off, tmp_path, monkeypatch)
     titles = {f["id"]: f["title"] for f in defender_off["fixes"]}
     expected = [titles[i] for i in defender_off["top_fixes"]]
     assert [s for s in drawn if s in expected] == expected
-    assert [s for s in drawn if s in ("1", "2", "3")] == ["1", "2", "3"][: len(expected)]
+    assert ranks == ["1", "2", "3"][: len(expected)]
 
 
 def test_pdf_zero_fixes_says_nothing_urgent(defender_off, tmp_path, monkeypatch):
@@ -523,10 +542,13 @@ def test_pdf_zero_fixes_says_nothing_urgent(defender_off, tmp_path, monkeypatch)
 
 def test_pdf_strip_has_word_for_every_category(defender_off, tmp_path, monkeypatch):
     drawn = _drawn_strings(defender_off, tmp_path, monkeypatch)
+    fixes = {f["id"]: f for f in defender_off["fixes"]}
     words = [html.BADGES[c["status"]]["word"] for c in defender_off["categories"]]
     overall = html.BADGES[defender_off["overall"]]["word"]
+    # each fix box also names its severity, so it is never colour alone
+    severities = [html.BADGES[fixes[i]["severity"]]["word"] for i in defender_off["top_fixes"][:3]]
     for word in set(words):
-        assert drawn.count(word) == words.count(word) + (word == overall)
+        assert drawn.count(word) == words.count(word) + (word == overall) + severities.count(word)
 
 
 def test_pdf_footer_has_privacy_line_and_versions(defender_off, tmp_path, monkeypatch):
@@ -569,3 +591,180 @@ def test_pdf_main_usage(capsys):
 def test_pdf_renderer_never_reads_the_scan():
     source = Path(pdf.__file__).read_text(encoding="ascii")
     assert "parse_path" not in source and "ScanModel" not in source
+
+
+# --- report design and wording spec (Brick C, C7) ---
+
+
+def _all_states(report: dict) -> dict:
+    """One category per status, plus a failed and an unavailable evidence row."""
+    out = copy.deepcopy(report)
+    statuses = ["red", "amber", "green", "unavailable", "failed"]
+    for c, status in zip(out["categories"], statuses):
+        c["status"] = status
+    out["categories"][3]["evidence"].append(
+        {"label": "BitLocker", "value": "Not checked — needs admin", "status": "unavailable"})
+    out["categories"][4]["evidence"] = [
+        {"label": "System Restore", "value": "Cmdlet threw", "status": "failed"}]
+    out["scan"]["is_admin"] = False
+    return out
+
+
+def _actions(page: str) -> str:
+    return page[page.index('<section id="actions">') : page.index('<section id="overview">')]
+
+
+def test_html_title_and_one_h1(defender_off):
+    page = html.render_string(defender_off)
+    date = html.human_date(defender_off["generated_at"])
+    assert f"<title>Antigravity &mdash; Cyber Health Check &mdash; {date}</title>" in page
+    assert page.count("<h1") == 1
+    assert "<h1><strong>Antigravity</strong> Cyber Health Check</h1>" in page
+
+
+def test_html_uses_spec_font_stack(defender_off):
+    assert 'font-family: "Segoe UI", system-ui, Arial, sans-serif;' in html.render_string(defender_off)
+
+
+def test_all_states_shows_every_status_word(defender_off):
+    page = html.render_string(_all_states(defender_off))
+    for b in html.BADGES.values():
+        assert f"{b['symbol']}</span> {b['word']}" in page, b["word"]
+
+
+@pytest.mark.parametrize("count, heading", [
+    (3, "Your top 3 fixes"), (2, "Your top 2 fixes"), (1, "Your top fix")])
+def test_top_fixes_heading_follows_count(defender_off, count, heading):
+    report = copy.deepcopy(defender_off)
+    report["top_fixes"] = report["top_fixes"][:count]
+    assert f"<h2>{heading}</h2>" in _actions(html.render_string(report))
+
+
+def test_top_fixes_capped_at_three(defender_off):
+    report = copy.deepcopy(defender_off)
+    report["top_fixes"] = [f["id"] for f in report["fixes"]]
+    assert len(report["top_fixes"]) > 3
+    actions = _actions(html.render_string(report))
+    assert actions.count('class="rank"') == 3
+    assert "Your top 3 fixes" in actions
+
+
+def test_top_fix_shows_steps_and_meta(defender_off):
+    actions = _actions(html.render_string(defender_off))
+    first = next(f for f in defender_off["fixes"] if f["id"] == defender_off["top_fixes"][0])
+    assert '<p class="steps-label">Steps</p>' in actions
+    for step in first["steps"]:
+        assert f"<li>{html_escape(step)}</li>" in actions
+    meta = f"~{first['effort_minutes']} min"
+    if first["needs_admin"]:
+        meta += " &middot; Needs admin"
+    assert f'<p class="meta">{meta}</p>' in actions
+
+
+def test_category_fix_tagged_with_top_rank(defender_off):
+    page = html.render_string(defender_off)
+    fixes = {f["id"]: f for f in defender_off["fixes"]}
+    for n, fix_id in enumerate(defender_off["top_fixes"], start=1):
+        section = _section(page, fixes[fix_id]["category"])
+        assert f'<span class="tag">Top fix {n}</span>' in section
+
+
+def test_category_without_fixes_says_nothing_to_fix(defender_off):
+    report = copy.deepcopy(defender_off)
+    report["categories"][2]["fix_ids"] = []
+    assert "Nothing to fix here." in _section(html.render_string(report), "software")
+
+
+def test_unavailable_hint_only_when_not_admin(defender_off):
+    hint = "Run Antigravity as administrator for a full check."
+    report = _all_states(defender_off)
+    assert hint in _section(html.render_string(report), "protection")
+    report["scan"]["is_admin"] = True
+    page = html.render_string(report)
+    assert hint not in page
+    assert "Scanned without admin rights" not in page
+
+
+def test_non_admin_note_wording(defender_off):
+    report = copy.deepcopy(defender_off)
+    report["scan"]["is_admin"] = False
+    header = html.render_string(report).split("</header>")[0]
+    assert "Scanned without admin rights, so some checks were skipped.</p>" in header
+
+
+def test_evidence_headers_and_screen_reader_word(defender_off):
+    section = _section(html.render_string(defender_off), "protection")
+    assert ('<th scope="col">What we looked at</th><th scope="col">What we found</th>'
+            '<th scope="col">Status</th>') in section
+
+
+def test_overview_heading(defender_off):
+    assert "<h2>The 5 checks at a glance</h2>" in html.render_string(defender_off)
+
+
+def test_footer_versions_line_has_os(defender_off):
+    footer = html.render_string(defender_off).split("<footer>")[1]
+    assert (f"Engine {defender_off['engine_version']} &middot; Baseline "
+            f"{defender_off['baseline_version']} &middot; "
+            f"{html_escape(defender_off['scan']['os_caption'])}") in footer
+
+
+def test_human_date_is_local(monkeypatch):
+    import time
+    monkeypatch.setenv("TZ", "Pacific/Auckland")
+    time.tzset()
+    try:
+        assert html.human_date("2026-11-14T22:30:00Z") == "15 Nov 2026"
+    finally:
+        monkeypatch.delenv("TZ")
+        time.tzset()
+
+
+def _report_strings(report: dict) -> list[str]:
+    out = [report["summary"], report["scan"]["os_caption"]]
+    for c in report["categories"]:
+        out.append(c["title"])
+    for f in report["fixes"]:
+        out += [f["title"], f["why"], *f["steps"]]
+    return out
+
+
+@pytest.mark.parametrize("path", SCAN_FIXTURES, ids=lambda p: p.name)
+def test_pdf_fixture_text_is_cp1252_after_arrow_swap(path, baseline):
+    # wording spec s4.1: only the arrow may be changed; anything else lost is a bug
+    for text in _report_strings(_report(path, baseline)):
+        if path != XSS:
+            text.replace(pdf.ARROW, ">").encode("cp1252")
+        assert pdf.pdf_text(text).encode("cp1252")
+
+
+@pytest.mark.parametrize("path", SCAN_FIXTURES, ids=lambda p: p.name)
+def test_pdf_every_drawn_string_encodes_cp1252(path, baseline, tmp_path, monkeypatch):
+    drawn = _drawn_strings(_report(path, baseline), tmp_path, monkeypatch)
+    for text in drawn:
+        text.encode("cp1252")
+
+
+def test_pdf_arrow_becomes_greater_than():
+    assert pdf.pdf_text("Open Start → Windows Security") == "Open Start > Windows Security"
+
+
+def test_pdf_long_org_truncated_in_header(defender_off, tmp_path, monkeypatch):
+    org = "An Organisation Name Far Longer Than Forty Characters (Pty) Ltd"
+    drawn = []
+    real = pdf.canvas.Canvas.drawString
+    monkeypatch.setattr(pdf.canvas.Canvas, "drawString",
+                        lambda self, x, y, text, *a, **k: (drawn.append(text),
+                                                           real(self, x, y, text, *a, **k))[1])
+    pdf.render(defender_off, tmp_path / "a.pdf", org=org)
+    line = next(s for s in drawn if s.startswith("An Organisation"))
+    assert line.startswith(pdf.truncate_org(org) + " ")
+    assert pdf.ELLIPSIS in line
+
+
+def test_pdf_header_and_footer_wording(defender_off, tmp_path, monkeypatch):
+    drawn = _drawn_strings(defender_off, tmp_path, monkeypatch)
+    assert "Antigravity" in drawn
+    assert "Cyber Health Action Plan" in drawn
+    versions = next(s for s in drawn if s.startswith("Engine "))
+    assert versions.endswith(defender_off["scan"]["os_caption"])
