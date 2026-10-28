@@ -34,11 +34,15 @@ it ships next to the engine so it can be updated without a rebuild.
 # cwd: antigravity/engine
 dist\engine\engine.exe --version
 dist\engine\engine.exe --in ..\shared\fixtures\scan.healthy.json --out ..\out\exe-test --baseline ..\baseline\software-baseline.json
+dist\engine\engine.exe --verify ..\out\exe-test\evidence.json --baseline ..\baseline\software-baseline.json
 ```
 
 Pass: `--version` prints `antigravity-engine <ver> contract <ver>`; `..\out\exe-test\`
-holds `report.json`, `report.html` and `action-plan.pdf`; the PDF is one page; exit
-code 0; the run takes under 5 s. To time it:
+holds `report.json`, `report.html`, `action-plan.pdf` and `evidence.json`; the PDF is
+one page; exit code 0; the run takes under 5 s. `--verify` prints `VERIFIED - ...`
+with the same Evidence ID as the HTML and PDF footers, exit code 0 (5 = TAMPERED,
+6 = CANNOT_VERIFY, s2.14.2). The first run of a freshly built binary can be much
+slower while the OS scans it; time a second run. To time it:
 
 ```powershell
 Measure-Command { dist\engine\engine.exe --in ..\shared\fixtures\scan.healthy.json --out ..\out\exe-test --baseline ..\baseline\software-baseline.json }
@@ -87,8 +91,9 @@ Copy `engine\dist\engine\` (the whole folder), `baseline\software-baseline.json`
    cd C:\ag; Measure-Command { .\engine\engine.exe --in .\scan.healthy.json --out .\out --baseline .\baseline\software-baseline.json }; .\engine\engine.exe --version; dir .\out
    ```
 
-Pass criteria (s2.12 step 7): version prints, all three output files exist, the PDF
-opens, total run < 5 s.
+Pass criteria (s2.12 step 7): version prints, all four output files exist, the PDF
+opens, total run < 5 s. Then `.\engine\engine.exe --verify .\out\evidence.json --baseline .\baseline\software-baseline.json`
+prints `VERIFIED` (RPT-11).
 
 ## What Schwan (Brick D) receives
 

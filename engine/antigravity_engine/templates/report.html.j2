@@ -233,6 +233,9 @@ footer .local { color: var(--ink); font-weight: 600; }
 <footer>
   <p class="local">Generated locally on this PC. Nothing was uploaded.</p>
   <p>Engine {{ report.engine_version }} &middot; Baseline {{ report.baseline_version }} &middot; Run {{ report.run_id }}</p>
+  {% if evidence_id %}
+  <p>Evidence ID {{ evidence_id }}</p>
+  {% endif %}
   <p>This is a guidance check, not a full security audit.</p>
 </footer>
 

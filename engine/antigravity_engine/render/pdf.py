@@ -247,7 +247,7 @@ def _fixes(c, report: dict) -> None:
         _fix(c, n, fixes[fix_id], top + (n - 1) * (FIX_BOX + FIX_GAP))
 
 
-def _footer(c, report: dict) -> None:
+def _footer(c, report: dict, evidence_id: str | None) -> None:
     top, _ = FOOTER
     c.setStrokeColor(RULE)
     c.setLineWidth(0.75)
@@ -257,15 +257,20 @@ def _footer(c, report: dict) -> None:
         f"Engine {report['engine_version']} {DOT} Baseline {report['baseline_version']}"
         f" {DOT} Run {report['run_id']}"
     )
+    if evidence_id:
+        versions += f" {DOT} Evidence ID {evidence_id}"
     _text(c, LEFT, y_mm(top + 10), versions, FONT, 8.5, MUTED, WIDTH)
     if not report["scan"]["is_admin"]:
         _text(c, LEFT, y_mm(top + 15), NOT_ADMIN, FONT, 8.5, MUTED, WIDTH)
 
 
-def render(report: dict, path: Path, org: str | None = None) -> int:
+def render(
+    report: dict, path: Path, org: str | None = None, evidence_id: str | None = None
+) -> int:
     """Draw the one-pager; returns the number of pages drawn (always 1).
 
     org is the licence organisation, known only to the app (D16); omitted if None.
+    evidence_id ("AG-...", s2.14.1) goes in the footer; omitted if None.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     # invariant: fixed creation date and document id, so the same report gives the same bytes.
@@ -276,7 +281,7 @@ def render(report: dict, path: Path, org: str | None = None) -> int:
     _summary(c, report)
     _strip(c, report)
     _fixes(c, report)
-    _footer(c, report)
+    _footer(c, report, evidence_id)
     c.showPage()
     pages = c.getPageNumber() - 1
     c.save()

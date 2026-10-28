@@ -15,7 +15,7 @@ from antigravity_engine.scoring.result import CATEGORY_ORDER
 from conftest import FIXTURES, ROOT
 
 HEALTHY = FIXTURES / "scan.healthy.json"
-OUTPUTS = {"report.json", "report.html", "action-plan.pdf"}
+OUTPUTS = {"report.json", "report.html", "action-plan.pdf", "evidence.json"}
 
 
 def _run(in_path, out_dir, *extra) -> int:
@@ -151,9 +151,9 @@ def test_every_scorer_raising_still_writes_report(tmp_path, monkeypatch):
 # --- outputs ---
 
 
-def test_json_only_writes_only_report_json(tmp_path):
+def test_json_only_skips_html_and_pdf(tmp_path):
     assert _run(HEALTHY, tmp_path / "out", "--json-only") == 0
-    assert {p.name for p in (tmp_path / "out").iterdir()} == {"report.json"}
+    assert {p.name for p in (tmp_path / "out").iterdir()} == {"report.json", "evidence.json"}
 
 
 def test_report_json_is_ascii_but_keeps_the_em_dash(tmp_path):
@@ -168,7 +168,7 @@ def test_report_json_is_ascii_but_keeps_the_em_dash(tmp_path):
 
 
 @pytest.mark.parametrize("path", sorted(FIXTURES.glob("scan.*.json")), ids=lambda p: p.name)
-def test_fixture_writes_all_three_outputs(path, tmp_path):
+def test_fixture_writes_all_four_outputs(path, tmp_path):
     out = tmp_path / "out"
     assert _run(path, out) == 0
     assert {p.name for p in out.iterdir()} == OUTPUTS
@@ -184,7 +184,7 @@ def test_report_json_is_utf8_without_bom(tmp_path):
 
 
 def test_render_failure_exits_3_and_keeps_report_json(tmp_path, monkeypatch, capsys):
-    def boom(report, path):
+    def boom(report, path, **kwargs):
         raise OSError("disk full")
 
     monkeypatch.setattr(html, "render", boom)

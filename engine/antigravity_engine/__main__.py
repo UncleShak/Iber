@@ -1,10 +1,13 @@
 """Command line entry point (s2.11): python -m antigravity_engine --in scan.json --out DIR
+                                   python -m antigravity_engine --verify evidence.json
 
 Exit codes:
   0  success (individual categories may still be failed)
   1  anything else (crash before report.json is written)
   2  invalid input (s2.4); report.json written with all five categories failed
   3  rendering failed; report.json written, report.html / action-plan.pdf may be missing
+  5  --verify: TAMPERED (s2.14.2)
+  6  --verify: CANNOT_VERIFY (s2.14.2)
 """
 
 import argparse
@@ -14,11 +17,11 @@ import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
-from antigravity_engine import __version__
+from antigravity_engine import __version__, evidence
 from antigravity_engine.aggregator import overall
 from antigravity_engine.baseline import Baseline, BaselineError, load_baseline
 from antigravity_engine.contract import ScanModel
-from antigravity_engine.parser import ContractError, parse_path
+from antigravity_engine.parser import ContractError, load_json, parse_dict
 from antigravity_engine.paths import default_baseline_path
 from antigravity_engine.report_model import REPORT_SCHEMA_VERSION, build_error_report, build_report
 from antigravity_engine.risk import summary
@@ -33,6 +36,7 @@ EXIT_RENDER = 3
 REPORT_JSON = "report.json"
 REPORT_HTML = "report.html"
 ACTION_PLAN_PDF = "action-plan.pdf"
+EVIDENCE_JSON = "evidence.json"
 
 INTERNAL_ERROR = "Internal error while checking."
 UNKNOWN_BASELINE = "unknown"
@@ -97,13 +101,13 @@ def _baseline_version(path: Path) -> str:
         return UNKNOWN_BASELINE
 
 
-def _render(report: dict, out_dir: Path) -> None:
+def _render(report: dict, out_dir: Path, evidence_id: str | None = None) -> None:
     # Imported here so a broken renderer dependency is a render failure (exit 3),
     # not a crash before report.json exists.
     from antigravity_engine.render import html, pdf
 
-    html.render(report, out_dir / REPORT_HTML)
-    pdf.render(report, out_dir / ACTION_PLAN_PDF)
+    html.render(report, out_dir / REPORT_HTML, evidence_id=evidence_id)
+    pdf.render(report, out_dir / ACTION_PLAN_PDF, evidence_id=evidence_id)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -115,6 +119,8 @@ def _parser() -> argparse.ArgumentParser:
     ap.add_argument("--baseline", metavar="PATH", help="software-baseline.json")
     ap.add_argument("--json-only", action="store_true", help="skip report.html and action-plan.pdf")
     ap.add_argument("--version", action="store_true", help="print versions and exit")
+    ap.add_argument("--verify", metavar="PATH",
+                    help="verify an evidence.json (ignores --in/--out); exit 0 / 5 / 6")
     return ap
 
 
@@ -124,6 +130,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.version:
         print(version_line())
         return EXIT_OK
+    if args.verify:
+        baseline_path = Path(args.baseline) if args.baseline else default_baseline_path()
+        result = evidence.verify(Path(args.verify), baseline_path, assess)
+        print(result.message)
+        return result.code
     if not args.in_path or not args.out_dir:
         ap.error("--in and --out are required")
 
@@ -132,7 +143,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     baseline_path = Path(args.baseline) if args.baseline else default_baseline_path()
 
     try:
-        scan = parse_path(Path(args.in_path))
+        raw = load_json(Path(args.in_path))
+        scan = parse_dict(raw)
     except ContractError as e:
         report = build_error_report(str(e), __version__, _baseline_version(baseline_path))
         write_json(report, report_path)
@@ -147,11 +159,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     report = assess(scan, baseline)
     write_json(report, report_path)
+    # s2.14: written on every scored run; a scan that fails the contract has no bundle (D19).
+    bundle = evidence.build_bundle(raw, report, evidence.baseline_hash(baseline_path))
+    write_json(bundle, out_dir / EVIDENCE_JSON)
 
     if args.json_only:
         return EXIT_OK
     try:
-        _render(report, out_dir)
+        _render(report, out_dir, bundle["evidence_id"])
     except Exception:
         print("antigravity-engine: rendering failed:", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)

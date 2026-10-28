@@ -30,6 +30,7 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 | D16 | Licence org in the HTML header | Low | Phase 10 / integration | OPEN |
 | D17 | Failed protection sub-check shown as unavailable | High | Phase 10 | CHANGED 2026-10-28 (phase-10 RPT-01) |
 | D18 | Backup B4/B5/B7 rows carried no status | High | Phase 10 | CHANGED 2026-10-28 (phase-10 RPT-02) |
+| D19 | Evidence bundle gaps in s2.14 | Medium | Before RPT-11 | OPEN |
 
 ---
 
@@ -545,3 +546,56 @@ Tests: `test_b4_agent_row_is_amber`, `test_b5_only_the_deciding_rows_are_amber`,
 
 **Alternatives.**
 - B7: mark only the File History row red (the fix target).
+
+---
+
+## D19. Evidence bundle gaps in s2.14
+
+Logged: 2026-10-28, phase 12.
+
+**Status.** OPEN. Each point below is what the code does now.
+
+**1. Baseline hash.** s2.14.1 says "hash of the exact baseline file used".
+Raw bytes differ between an LF checkout (macOS) and a CRLF one (Windows,
+core.autocrlf true), so the same baseline would give CANNOT_VERIFY across
+machines. `baseline_sha256` is the canonical hash of the parsed baseline
+JSON instead: same content, same hash.
+Test: `test_baseline_hash_ignores_line_endings`.
+
+**2. No bundle on bad input.** s2.13 says evidence.json "for every run". A
+scan that fails the contract (exit 2) may not even be JSON, and its error
+report is not derived from the scan, so there is nothing to recompute.
+evidence.json is written for every scored run (exit 0 and 3, and
+--json-only), never for exit 2. Test: `test_bad_input_writes_no_evidence`.
+
+**3. Evidence ID check.** s2.14.2 step 2 checks only the two hashes. The
+verifier also rejects an `evidence_id` that does not match
+`report_sha256` (TAMPERED: evidence ID edited), so the ID on paper always
+names the report that verified. Test: `test_edited_evidence_id_is_tampered`.
+
+**4. Patch releases.** Step 4 ignores only `generated_at`, but report.json
+carries `engine_version`, so a 0.1.1 verifier would call every 0.1.0 bundle
+TAMPERED although step 3 accepts the same major.minor. When major.minor
+match, step 4 also ignores the patch part of the report's engine_version.
+Test: `test_patch_release_of_same_minor_still_verifies`.
+
+**5. Schema location.** Appendix A.3 puts evidence.schema.json in
+shared/contract/ (Brick B). It is not there yet, so evidence.py carries an
+inline copy of A.3 (`EVIDENCE_SCHEMA`) for step 1. Once B adds the file,
+switch to schema_path("evidence.schema.json") and add it to engine.spec.
+
+**6. Edits that cannot change the report.** Flipping a scan field that does
+not affect any rating (realtime_enabled when antivirus is already off) and
+recomputing the hashes still VERIFIES: the report really is what the rules
+give for that scan. This is the s2.14 honest scope (the verifier does not
+prove the scan is genuine), so the s2.14.4 "scan field changed" case is
+tested on the healthy scan, where the edit changes the result.
+Tests: `test_scan_edit_with_rehash_does_not_match_report`,
+`test_scan_edit_that_cannot_change_the_report_still_verifies`.
+
+**7. "Not checked: n items"** counts evidence rows whose status is
+unavailable or failed.
+
+**Alternatives.**
+- 1: hash raw bytes and add a .gitattributes rule pinning baseline/*.json to LF.
+- 2: write a bundle with the raw input bytes hashed but no report check.

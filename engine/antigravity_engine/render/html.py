@@ -83,19 +83,25 @@ def _env() -> Environment:
     return env
 
 
-def render_string(report: dict, org: str | None = None) -> str:
-    """org is the licence organisation, known only to the app (D16); omitted if None."""
+def render_string(report: dict, org: str | None = None, evidence_id: str | None = None) -> str:
+    """org is the licence organisation, known only to the app (D16); omitted if None.
+
+    evidence_id ("AG-...", s2.14.1) is derived from report.json's hash, so it is
+    passed in, never stored in the report; omitted if None.
+    """
     fixes = {f["id"]: f for f in report["fixes"]}
     rank = {fix_id: n for n, fix_id in enumerate(report["top_fixes"], start=1)}
     titles = {c["id"]: c["title"] for c in report["categories"]}
     return _env().get_template(TEMPLATE).render(
-        report=report, fixes=fixes, rank=rank, titles=titles, org=org
+        report=report, fixes=fixes, rank=rank, titles=titles, org=org, evidence_id=evidence_id
     )
 
 
-def render(report: dict, path: Path, org: str | None = None) -> None:
+def render(
+    report: dict, path: Path, org: str | None = None, evidence_id: str | None = None
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(render_string(report, org), encoding="utf-8", newline="\n")
+    path.write_text(render_string(report, org, evidence_id), encoding="utf-8", newline="\n")
 
 
 def main(argv: Sequence[str] | None = None) -> int:

@@ -13,6 +13,7 @@ Each phase is done only when its gate passes and the test output has been shown.
 - [x] 9. PDF one-pager - gate: test_render.py: action-plan.pdf is exactly one page for every fixture.
 - [x] 10. End-to-end + integrity - gate: test_fixtures.py and test_integrity.py pass; every report.json validates against report.schema.json; RPT-01..03, 06 hold.
 - [x] 11. PyInstaller - gate: engine.spec one-folder build runs --version and a fixture scan on a machine with no Python, in < 5 s.
+- [x] 12. Evidence bundle - gate: test_evidence.py covers every s2.14.4 case; evidence.json written on every scored run; --verify exits 0 / 5 / 6; Evidence ID on HTML and PDF footers. Gaps: D19.
 
 Open judgement calls (spec gaps) and the solutions in code: docs/brick-a-decisions.md. Settle D1-D3 before phase 4.
 
