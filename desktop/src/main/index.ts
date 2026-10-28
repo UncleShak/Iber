@@ -5,6 +5,17 @@ import { app, BrowserWindow, Menu, shell } from "electron";
 import path from "node:path";
 import { registerIpc } from "./ipc";
 
+export function handleWindowOpen({ url }: { url: string }): { action: "deny" } {
+  try {
+    if (new URL(url).protocol === "https:") {
+      shell.openExternal(url);
+    }
+  } catch {
+    // Ignore malformed URLs and deny
+  }
+  return { action: "deny" };
+}
+
 // One instance only — second launch focuses the existing window.
 // Separate userData subfolder so the app's lockfile and Chromium profile
 // do not collide with the Antigravity IDE's %APPDATA%\Antigravity\lockfile.
@@ -33,13 +44,9 @@ function createWindow() {
     if (!app.isPackaged && devUrl && url.startsWith(devUrl)) return;
     e.preventDefault();
   });
-  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
 
-  // External links open in the default browser, never inside the app.
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: "deny" };
-  });
+  // External https: links open in the default browser, never inside the app.
+  win.webContents.setWindowOpenHandler(handleWindowOpen);
 
   win.once("ready-to-show", () => {
     win?.show();
