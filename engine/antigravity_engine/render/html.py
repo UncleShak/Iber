@@ -10,7 +10,7 @@ Standalone: python -m antigravity_engine.render.html report.json report.html
 import json
 import sys
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, tzinfo
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
@@ -64,13 +64,14 @@ def evidence_value(row: dict) -> str:
     return value
 
 
-def human_date(stamp: str) -> str:
+def human_date(stamp: str, tz: tzinfo | None = None) -> str:
     """"2026-11-14T17:02:46Z" -> "14 Nov 2026" in the PC's local date (s0.8 date style).
 
     generated_at is UTC; the reader expects the day it was on their own clock.
-    No %-d, which Windows strftime does not support.
+    No %-d, which Windows strftime does not support. tz defaults to the PC's
+    local zone; tests pass a fixed offset.
     """
-    dt = datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC).astimezone()
+    dt = datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC).astimezone(tz)
     return f"{dt.day} {dt:%b %Y}"
 
 
