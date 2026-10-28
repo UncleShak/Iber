@@ -9,6 +9,7 @@ import { runCollector } from "./pipeline/runCollector";
 import { runEngine } from "./pipeline/runEngine";
 import { runMockScan } from "./mock";
 import { verifyLicense } from "./license/verify";
+import { verifyPackagedResources } from "./integrity";
 
 let currentAbort: AbortController | null = null;
 
@@ -75,6 +76,11 @@ export function registerIpc() {
         const out = await runMockScan((phase, elapsedMs) => getWin()?.webContents.send(IPC.scanProgress, { runId, phase, elapsedMs }), signal);
         if (!out.ok) return { ok: false, runId, stage: out.stage, message: out.message };
         return { ok: true, runId: out.runId, report: out.report, pdfAvailable: out.pdfAvailable };
+      }
+      const integrity = verifyPackagedResources();
+      if (!integrity.ok) {
+        await logErr(`Integrity check failed: ${integrity.detail}`);
+        return { ok: false, runId, stage: "collector", message: integrity.message };
       }
       const runDir = await prepareRunFolder(runId);
       progress("starting");
