@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Antigravity report</title>
+</head>
+<body>
+<h1>Overall: {{ report.overall }}</h1>
+<p>{{ report.summary }}</p>
+<p>Generated {{ report.generated_at }} - engine {{ report.engine_version }}, baseline {{ report.baseline_version }}</p>
+{% for c in report.categories %}
+<section id="{{ c.id }}">
+<h2>{{ c.title }}: {{ c.status }}</h2>
+<p>{{ c.explanation }}</p>
+<table>
+{% for row in c.evidence %}<tr><td>{{ row.label }}</td><td>{{ row.value }}</td></tr>
+{% endfor %}</table>
+</section>
+{% endfor %}
+<h2>Fixes</h2>
+{% for f in report.fixes %}
+<section id="fix-{{ f.id }}">
+<h3>{{ f.title }} ({{ f.severity }})</h3>
+<p>{{ f.why }}</p>
+<ol>
+{% for step in f.steps %}<li>{{ step }}</li>
+{% endfor %}</ol>
+</section>
+{% endfor %}
+</body>
+</html>
