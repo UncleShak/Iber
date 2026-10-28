@@ -28,6 +28,8 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 | D14 | Null fields and all-grey protection category | Medium | Phase 6 | DECIDED 2026-10-28 (Tshedi) |
 | D15 | All-null recovery section rated green | Medium | Any time | CHANGED 2026-10-28 (Tshedi) |
 | D16 | Licence org in the HTML header | Low | Phase 10 / integration | OPEN |
+| D17 | Failed protection sub-check shown as unavailable | High | Phase 10 | CHANGED 2026-10-28 (phase-10 RPT-01) |
+| D18 | Backup B4/B5/B7 rows carried no status | High | Phase 10 | CHANGED 2026-10-28 (phase-10 RPT-02) |
 
 ---
 
@@ -489,3 +491,52 @@ asks for.
   (no contract change; engine still never reads the token).
 - Add an optional `org` to report.schema.json (contract change, s0.10).
 - Drop org from the HTML; the app footer already shows it.
+
+---
+
+## D17. Failed protection sub-check shown as unavailable
+
+Logged: 2026-10-28, phase 10.
+
+**Status.** CHANGED 2026-10-28 in the phase-10 commit; found by
+test_integrity.py (RPT-01).
+
+**Gap.** s2.5.4 says unavailable/failed sub-checks "appear as grey rows" but
+not with which status. The scorer gave both the status `unavailable`, so a
+Defender probe that threw read "Not checked" instead of "Check failed". That
+breaks RPT-01 and s0.9 rule 2 ("missing probes appear as evidence rows with
+that status"); s3 shows a throwing Defender probe as grey-striped.
+
+**Solution in code.** A failed sub-check section gives a `failed` row whose
+value is the collector error (rendered "Couldn't read: <error>"); an
+unavailable one keeps the `unavailable` row. Both are still skipped for
+rating, and a failed row counts as grey for the "could check" explanation.
+File: `engine/antigravity_engine/scoring/protection.py` (`_grey_section`).
+Tests: `test_defender_section_failed_is_grey_and_cfa_asr_still_rated`,
+`test_bitlocker_failed_on_home_is_grey_not_rated`,
+`test_status_mapping_protection_rows` (test_integrity.py).
+
+---
+
+## D18. Backup B4/B5/B7 rows carried no status
+
+Logged: 2026-10-28, phase 10.
+
+**Status.** CHANGED 2026-10-28 in the phase-10 commit; found by
+test_integrity.py (RPT-02) on scan.defender-off.json.
+
+**Gap.** B4, B5 and B7 rate the category amber/red from the absence of a
+dated backup, but every row they show (File History off, OneDrive sync,
+backup programs) had no status, so no evidence row matched the category
+status (RPT-02).
+
+**Solution in code.** The deciding rows take the category status: B4 the
+"Backup programs found" row (amber); B5 the OneDrive and/or shadow-copy row
+that triggered it (amber); B7 every row without a status, since each one is
+a missing kind of backup (red). Grey rows stay grey.
+File: `engine/antigravity_engine/scoring/backup.py` (`_mark`).
+Tests: `test_b4_agent_row_is_amber`, `test_b5_only_the_deciding_rows_are_amber`,
+`test_b7_every_nothing_found_row_is_red`, `test_b7_keeps_grey_rows_grey`.
+
+**Alternatives.**
+- B7: mark only the File History row red (the fix target).

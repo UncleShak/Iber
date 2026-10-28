@@ -60,6 +60,10 @@ def _usable(section: Section) -> bool:
 
 
 def _grey_section(label: str, section: Section) -> _Check:
+    """Grey row that keeps the section's own status (s0.9 rule 2, RPT-01)."""
+    if section.status == SectionStatus.FAILED:
+        return _Check(EvidenceRow(label, (section.error or "").strip() or "Unknown error",
+                                  Status.FAILED))
     return _Check(EvidenceRow(label, plain_reason(section.error), Status.UNAVAILABLE))
 
 
@@ -216,7 +220,7 @@ def score(scan: ScanModel, ctx: Baseline) -> CategoryResult:
         return CategoryResult.unavailable(CATEGORY, reason, rows)
 
     if status == Status.GREEN:
-        grey = any(row.status == Status.UNAVAILABLE for row in rows)
+        grey = any(row.status in (Status.UNAVAILABLE, Status.FAILED) for row in rows)
         if not grey and not excluded:
             explanation = (
                 "Antivirus, drive encryption and Microsoft Defender's anti-ransomware protections "

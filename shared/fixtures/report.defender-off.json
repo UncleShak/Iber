@@ -1,0 +1,239 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "2026-11-14T17-02-44Z_0003",
+  "generated_at": "2026-10-28T00:23:49Z",
+  "engine_version": "0.1.0",
+  "baseline_version": "2026-10-27",
+  "overall": "red",
+  "summary": "2 urgent issues need attention this week.",
+  "categories": [
+    {
+      "id": "backup",
+      "title": "Backup evidence",
+      "status": "amber",
+      "explanation": "OneDrive sync is not a backup: ransomware can lock synced files too. Set up a real backup. Run as administrator for a full check.",
+      "evidence": [
+        {
+          "label": "File History",
+          "value": "Off"
+        },
+        {
+          "label": "Windows Backup",
+          "value": "Not checked — needs admin",
+          "status": "unavailable"
+        },
+        {
+          "label": "Backup programs found",
+          "value": "None"
+        },
+        {
+          "label": "OneDrive folder sync",
+          "value": "Documents (sync, not a backup)",
+          "status": "amber"
+        },
+        {
+          "label": "Shadow copies",
+          "value": "Not checked — needs admin",
+          "status": "unavailable"
+        }
+      ],
+      "fix_ids": [
+        "turn-on-file-history"
+      ]
+    },
+    {
+      "id": "patch",
+      "title": "Patch status",
+      "status": "amber",
+      "explanation": "The newest Windows update is 55 days old. Install the latest updates soon. Windows 10 support ended on 14 Oct 2025 unless you've enrolled in Extended Security Updates.",
+      "evidence": [
+        {
+          "label": "Newest Windows update",
+          "value": "20 Sep 2026 (55 days ago), KB5043064",
+          "status": "amber"
+        },
+        {
+          "label": "Updates installed",
+          "value": "9 updates"
+        },
+        {
+          "label": "Restart needed to finish updates",
+          "value": "Yes",
+          "status": "amber"
+        },
+        {
+          "label": "Windows version",
+          "value": "Microsoft Windows 10 Pro (build 19045), out of support",
+          "status": "amber"
+        }
+      ],
+      "fix_ids": [
+        "install-updates",
+        "plan-windows-11"
+      ]
+    },
+    {
+      "id": "software",
+      "title": "Outdated software",
+      "status": "red",
+      "explanation": "Google Chrome is out of date and has known security holes that attackers use.",
+      "evidence": [
+        {
+          "label": "Google Chrome",
+          "value": "118.0.5993.118, needs 142.0.7444.175 or newer",
+          "status": "red"
+        },
+        {
+          "label": "Other programs",
+          "value": "0 other apps not on our watch list"
+        }
+      ],
+      "fix_ids": [
+        "update-outdated-apps"
+      ]
+    },
+    {
+      "id": "protection",
+      "title": "Ransomware protections",
+      "status": "red",
+      "explanation": "Microsoft Defender is off and no other antivirus was found, so ransomware can run unnoticed.",
+      "evidence": [
+        {
+          "label": "Antivirus",
+          "value": "Microsoft Defender is off and no other antivirus was found",
+          "status": "red"
+        },
+        {
+          "label": "Drive encryption",
+          "value": "Not checked — needs admin",
+          "status": "unavailable"
+        },
+        {
+          "label": "Controlled folder access",
+          "value": "Only works when Microsoft Defender is your antivirus"
+        },
+        {
+          "label": "Anti-ransomware rules",
+          "value": "Only works when Microsoft Defender is your antivirus"
+        }
+      ],
+      "fix_ids": [
+        "enable-defender"
+      ]
+    },
+    {
+      "id": "recovery",
+      "title": "Recovery readiness",
+      "status": "green",
+      "explanation": "System Restore is on, but some recovery settings couldn't be checked. Run as administrator for a full check.",
+      "evidence": [
+        {
+          "label": "Windows recovery tools",
+          "value": "Not checked — needs admin",
+          "status": "unavailable"
+        },
+        {
+          "label": "System Restore",
+          "value": "On",
+          "status": "green"
+        },
+        {
+          "label": "Restore points",
+          "value": "Not checked — needs admin",
+          "status": "unavailable"
+        },
+        {
+          "label": "Newest restore point",
+          "value": "Not checked — needs admin",
+          "status": "unavailable"
+        }
+      ],
+      "fix_ids": []
+    }
+  ],
+  "fixes": [
+    {
+      "id": "enable-defender",
+      "category": "protection",
+      "severity": "red",
+      "title": "Turn Microsoft Defender back on",
+      "why": "Without antivirus, ransomware can run unnoticed.",
+      "steps": [
+        "Click Start and open Windows Security.",
+        "Choose Virus & threat protection, then Manage settings.",
+        "Switch Real-time protection to On.",
+        "If it switches itself off again, ask your IT helper to check for other security software."
+      ],
+      "effort_minutes": 5,
+      "needs_admin": true
+    },
+    {
+      "id": "update-outdated-apps",
+      "category": "software",
+      "severity": "red",
+      "title": "Update or remove outdated programs",
+      "why": "Old versions of everyday programs have known holes that attackers use.",
+      "steps": [
+        "Update these programs: Google Chrome.",
+        "Look for Help, then About or Check for updates, and install the update."
+      ],
+      "effort_minutes": 20,
+      "needs_admin": false
+    },
+    {
+      "id": "turn-on-file-history",
+      "category": "backup",
+      "severity": "amber",
+      "title": "Start backing up your files with File History",
+      "why": "If ransomware locks your files, a recent backup is the only way to get them back for free.",
+      "steps": [
+        "Plug in an external USB drive with enough space for your files.",
+        "Click Start, type File History and open it.",
+        "Choose the USB drive and click Turn on.",
+        "Click Run now to make the first backup.",
+        "Unplug the drive when it finishes and store it away from the PC."
+      ],
+      "effort_minutes": 15,
+      "needs_admin": false
+    },
+    {
+      "id": "install-updates",
+      "category": "patch",
+      "severity": "amber",
+      "title": "Install the latest Windows updates",
+      "why": "Missing updates are the most common way attackers get into a PC.",
+      "steps": [
+        "Save your work and close your programs.",
+        "Click Start, open Settings and go to Windows Update.",
+        "Click Check for updates, then Download and install.",
+        "Restart the PC when asked."
+      ],
+      "effort_minutes": 30,
+      "needs_admin": true
+    },
+    {
+      "id": "plan-windows-11",
+      "category": "patch",
+      "severity": "amber",
+      "title": "Plan your move to a supported Windows version",
+      "why": "Old Windows versions stop getting security fixes, so new attacks stay open.",
+      "steps": [
+        "Click Start, open Settings and go to Windows Update.",
+        "If an upgrade to Windows 11 is offered, back up your files first, then install it.",
+        "If this PC can't run Windows 11, ask your IT helper about Extended Security Updates or a new PC."
+      ],
+      "effort_minutes": 60,
+      "needs_admin": true
+    }
+  ],
+  "top_fixes": [
+    "enable-defender",
+    "update-outdated-apps",
+    "turn-on-file-history"
+  ],
+  "scan": {
+    "is_admin": false,
+    "duration_ms": 6230,
+    "os_caption": "Microsoft Windows 10 Pro"
+  }
+}

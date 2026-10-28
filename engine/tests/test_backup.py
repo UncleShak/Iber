@@ -178,6 +178,45 @@ def test_b7_file_history_on_but_never_ran_is_still_red(make_scan):
     assert _row(r, "File History").value == "On, but no backup has finished yet"
 
 
+# --- RPT-02: the rows that decided B4/B5/B7 carry the category status ---
+
+
+def test_b4_agent_row_is_amber(make_scan):
+    r = backup.score(make_scan(_nothing(third_party_agents=["Veeam Agent"],
+                                        onedrive_kfm_folders=["Desktop"])))
+    assert _row(r, "Backup programs found").status == "amber"
+    assert _row(r, "OneDrive folder sync").status is None
+
+
+@pytest.mark.parametrize(
+    ("sync", "shadow", "amber_rows"),
+    [
+        (["Desktop"], 0, {"OneDrive folder sync"}),
+        ([], 2, {"Shadow copies"}),
+        (["Desktop"], 2, {"OneDrive folder sync", "Shadow copies"}),
+    ],
+)
+def test_b5_only_the_deciding_rows_are_amber(make_scan, sync, shadow, amber_rows):
+    r = backup.score(make_scan(_nothing(onedrive_kfm_folders=sync, shadow_copy_count=shadow)))
+    assert {row.label for row in r.evidence if row.status == "amber"} == amber_rows
+    assert all(row.status in ("amber", None) for row in r.evidence)
+
+
+def test_b7_every_nothing_found_row_is_red(make_scan):
+    r = backup.score(make_scan(_nothing()))
+    assert all(row.status == "red" for row in r.evidence)
+
+
+def test_b7_keeps_grey_rows_grey(make_scan):
+    s = make_scan({"host": {"is_admin": False},
+                   **_nothing(windows_backup_last_success=None, shadow_copy_count=None)})
+    r = backup.score(s)
+    assert r.status == "red"
+    assert _row(r, "Windows Backup").status == "unavailable"
+    assert _row(r, "Shadow copies").status == "unavailable"
+    assert _row(r, "File History").status == "red"
+
+
 # --- non-admin nulls ---
 
 NON_ADMIN = {"host": {"is_admin": False}}

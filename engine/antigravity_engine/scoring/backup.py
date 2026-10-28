@@ -21,6 +21,10 @@ CATEGORY = "backup"
 GREEN_MAX_DAYS = 7
 AMBER_MAX_DAYS = 30
 
+AGENTS = "Backup programs found"
+ONEDRIVE = "OneDrive folder sync"
+SHADOW = "Shadow copies"
+
 _ADMIN_HINT = " Run as administrator for a full check."
 
 
@@ -37,6 +41,19 @@ def _dated_row(label: str, iso: str, now) -> tuple[EvidenceRow, int]:
     days = max(clock.days_between(when, now), 0)
     value = f"{clock.fmt_date(when)} ({clock.fmt_age(days)})"
     return EvidenceRow(label, value, _age_status(days)), days
+
+
+def _mark(rows: list[EvidenceRow], status: Status, *labels: str) -> list[EvidenceRow]:
+    """Give the rows that decided B4/B5/B7 the category status (RPT-02).
+
+    No labels: every row that has no status yet (B7, where each one is a
+    missing kind of backup). Grey rows are never recoloured.
+    """
+    return [
+        EvidenceRow(r.label, r.value, status)
+        if r.status is None and (not labels or r.label in labels) else r
+        for r in rows
+    ]
 
 
 def score(scan: ScanModel, ctx: Baseline | None = None) -> CategoryResult:
@@ -79,28 +96,28 @@ def score(scan: ScanModel, ctx: Baseline | None = None) -> CategoryResult:
         rows.append(EvidenceRow("Windows Backup", "No completed backup found"))
 
     if b.third_party_agents:
-        rows.append(EvidenceRow("Backup programs found", ", ".join(b.third_party_agents)))
+        rows.append(EvidenceRow(AGENTS, ", ".join(b.third_party_agents)))
     else:
-        rows.append(EvidenceRow("Backup programs found", "None"))
+        rows.append(EvidenceRow(AGENTS, "None"))
 
     if b.onedrive_kfm_folders:
         folders = ", ".join(b.onedrive_kfm_folders)
-        rows.append(EvidenceRow("OneDrive folder sync", f"{folders} (sync, not a backup)"))
+        rows.append(EvidenceRow(ONEDRIVE, f"{folders} (sync, not a backup)"))
     else:
-        rows.append(EvidenceRow("OneDrive folder sync", "Not set up"))
+        rows.append(EvidenceRow(ONEDRIVE, "Not set up"))
 
     if b.shadow_copy_count is None:
         if not is_admin:
-            rows.append(EvidenceRow("Shadow copies", NEEDS_ADMIN, Status.UNAVAILABLE))
+            rows.append(EvidenceRow(SHADOW, NEEDS_ADMIN, Status.UNAVAILABLE))
             admin_gap = True
         else:
-            rows.append(EvidenceRow("Shadow copies", "Not checked", Status.UNAVAILABLE))
+            rows.append(EvidenceRow(SHADOW, "Not checked", Status.UNAVAILABLE))
     elif b.shadow_copy_count >= 1:
         n = b.shadow_copy_count
         noun = "snapshot" if n == 1 else "snapshots"
-        rows.append(EvidenceRow("Shadow copies", f"{n} {noun} (not a backup)"))
+        rows.append(EvidenceRow(SHADOW, f"{n} {noun} (not a backup)"))
     else:
-        rows.append(EvidenceRow("Shadow copies", "None"))
+        rows.append(EvidenceRow(SHADOW, "None"))
 
     hint = _ADMIN_HINT if admin_gap else ""
     newest = min(ages) if ages else None
@@ -127,7 +144,7 @@ def score(scan: ScanModel, ctx: Baseline | None = None) -> CategoryResult:
                 CATEGORY, Status.AMBER,
                 "A backup program is installed, but we couldn't see a recent completed backup "
                 "from it." + hint,
-                rows, ["verify-backup-agent"],
+                _mark(rows, Status.AMBER, AGENTS), ["verify-backup-agent"],
             )
         # B5
         has_sync = bool(b.onedrive_kfm_folders)
@@ -143,14 +160,16 @@ def score(scan: ScanModel, ctx: Baseline | None = None) -> CategoryResult:
             return CategoryResult.rated(
                 CATEGORY, Status.AMBER,
                 f"{what} Set up a real backup." + hint,
-                rows, ["turn-on-file-history"],
+                _mark(rows, Status.AMBER, *([ONEDRIVE] if has_sync else []),
+                      *([SHADOW] if has_shadow else [])),
+                ["turn-on-file-history"],
             )
         # B7
         return CategoryResult.rated(
             CATEGORY, Status.RED,
             "We found no backup of any kind. If ransomware locked your files, there would be "
             "no copy to get them back from." + hint,
-            rows, ["turn-on-file-history"],
+            _mark(rows, Status.RED), ["turn-on-file-history"],
         )
     # B6
     return CategoryResult.rated(

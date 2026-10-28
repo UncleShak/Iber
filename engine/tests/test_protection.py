@@ -184,7 +184,8 @@ def test_defender_section_failed_is_grey_and_cfa_asr_still_rated(make_scan, base
     s = make_scan(_prot(defender={"status": "failed", "error": "Get-MpComputerStatus threw"},
                         cfa={"mode": "disabled"}))
     r = protection.score(s, baseline)
-    assert _row(r, protection.DEFENDER).status == Status.UNAVAILABLE
+    row = _row(r, protection.DEFENDER)
+    assert row.status == Status.FAILED and row.value == "Get-MpComputerStatus threw"
     assert r.status == Status.AMBER and r.fix_ids == ("enable-cfa",)
 
 
@@ -215,7 +216,7 @@ def test_bitlocker_failed_on_home_is_grey_not_rated(make_scan, baseline):
                    **_prot(bitlocker={"status": "failed", "error": "boom",
                                       "os_volume_protection": None})})
     r = protection.score(s, baseline)
-    assert _row(r, protection.BITLOCKER).status == Status.UNAVAILABLE
+    assert _row(r, protection.BITLOCKER).status == Status.FAILED
     assert r.status == Status.GREEN
 
 
