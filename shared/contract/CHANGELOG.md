@@ -27,5 +27,5 @@ Decisions (manual v1.1 text corrected in the same PR: §0.5, §0.6, §0.7, Appen
 
 | Who | Role | Agreed (date/time) |
 |---|---|---|
-| Shakir | Contract owner (B) | |
+| Shakir | Contract owner (B) |agreed 04:26 28/10/2026 |
 | Tshedi | Lead (A) | |
