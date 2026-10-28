@@ -1,6 +1,6 @@
 ﻿# collector/probes/Software.ps1 - software block (manual 3.5 item 3). Lengths cut to the schema limits (P1).
 function ConvertTo-AgCut($v, [int]$Max) {
-    $t = ("$v" -replace '^\s+|\s+$', '')
+    $t = ("$v" -replace '[\x00-\x1F\x7F]', '' -replace '^\s+|\s+$', '')   # control chars (e.g. a trailing NUL) break the report
     if ($t.Length -gt $Max) { $t = $t.Substring(0, $Max) -replace '\s+$', '' }
     return $t
 }

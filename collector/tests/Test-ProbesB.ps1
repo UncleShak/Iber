@@ -242,6 +242,11 @@ Test-Case 'Software: trims, missing version and publisher become empty strings' 
     $i = @((Get-AgSoftware)['installed'])
     Assert-True ($i[0]['name'] -ceq 'Tool' -and $i[0]['version'] -ceq '' -and $i[0]['publisher'] -ceq '') 'expected trimmed/empty strings'
 }
+Test-Case 'Software: control characters (e.g. trailing NUL) are removed' {
+    Set-FakeValue 'Read-AgUninstallKeys' @([pscustomobject]@{ DisplayName = "Game for HP$([char]0)"; DisplayVersion = "1.0$([char]9)"; Publisher = "Acme$([char]27)Inc" })
+    $i = @((Get-AgSoftware)['installed'])
+    Assert-True ($i[0]['name'] -ceq 'Game for HP' -and $i[0]['version'] -ceq '1.0' -and $i[0]['publisher'] -ceq 'AcmeInc') "got '$($i[0]['name'])' '$($i[0]['version'])' '$($i[0]['publisher'])'"
+}
 Test-Case 'Software: lengths cut to 256 / 64 / 256 (P1)' {
     Set-FakeValue 'Read-AgUninstallKeys' @((New-App ('n' * 300) ('v' * 100) ('p' * 300)))
     $i = @((Get-AgSoftware)['installed'])

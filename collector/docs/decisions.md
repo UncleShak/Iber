@@ -24,3 +24,11 @@
 - P6 (from the Socrates review): a single field whose raw value can't be read or converted falls back to `$null` for that field only, and the section stays `ok`. This covers a File History FILETIME that is invalid or not an integer, Get-ComputerRestorePoint throwing while elevated, and reagentc.exe missing. Reason: one bad value must not wipe out the rest of the section's evidence (backup is rated red on missing evidence). §3.5 doesn't cover this case.
 - The "no backup events / no log" check uses `FullyQualifiedErrorId` (`NoMatchingEventsFound`, `NoMatchingLogsFound`), not the message text, which is translated on non-English Windows.
 - Known limits: `days_since_latest_hotfix` can be -1 for a patch installed between 00:00 and 02:00 SAST (the manual's formula; the engine recomputes it). The th-TH test only covers formatting, not how Get-HotFix parses dates.
+
+## 2026-10-28 · Prep-night verify values (Archon's PC: Windows 11 Home Single Language, build 26200)
+
+- BitLocker COM `System.Volume.BitLockerProtection` = `1` while `Get-BitLockerVolume` ProtectionStatus = `On` → the mapping 1 = on is confirmed. Values 2 and 3 are not yet seen.
+- File History: not configured on this PC, so the `ProtectedUpToTime` type is **still unverified**.
+- System Restore `RPSessionInterval`/`DisableSR`: **still unverified**.
+- Software: real uninstall entries can end in a NUL character (e.g. "Roblox Player for HP\0"). Control characters are now stripped in `Software.ps1`.
+- **Open question (manual §3.5/§3.6):** this Home PC has device encryption **on** and `Get-BitLockerVolume` works, but the Home precondition reports `bitlocker: unavailable`. The real evidence ("on") is lost, and the engine rates it amber. Should Home still try the cmdlet/COM read and report the value when one is readable?
