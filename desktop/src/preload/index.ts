@@ -1,18 +1,26 @@
-import { contextBridge, ipcRenderer } from 'electron';
-import { IPC } from '../shared/ipc';
+// desktop/src/preload/index.ts
+import { contextBridge, ipcRenderer } from "electron";
+import { IPC, type ScanProgress } from "../shared/ipc";
 
-contextBridge.exposeInMainWorld('antigravity', {
+const api = {
   getLicense: () => ipcRenderer.invoke(IPC.licenseGet),
-  submitLicense: (t: string) => ipcRenderer.invoke(IPC.licenseSubmit, t),
+  submitLicense: (token: string) => ipcRenderer.invoke(IPC.licenseSubmit, token),
   runScan: () => ipcRenderer.invoke(IPC.scanRun),
   cancelScan: () => ipcRenderer.invoke(IPC.scanCancel),
-  onProgress: (cb: any) => {
-    const h = (_: any, p: any) => cb(p);
-    ipcRenderer.on(IPC.scanProgress, h);
-    return () => ipcRenderer.removeListener(IPC.scanProgress, h);
+  onProgress: (cb: (p: ScanProgress) => void) => {
+    const handler = (_e: unknown, p: ScanProgress) => cb(p);
+    ipcRenderer.on(IPC.scanProgress, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC.scanProgress, handler);
+    };
   },
-  openPdf: (id: string) => ipcRenderer.invoke(IPC.reportOpenPdf, id),
-  openHtml: (id: string) => ipcRenderer.invoke(IPC.reportOpenHtml, id),
-  exportEvidence: (id: string) => ipcRenderer.invoke(IPC.reportExportEvidence, id),
+  openPdf: (runId: string) => ipcRenderer.invoke(IPC.reportOpenPdf, runId),
+  openHtml: (runId: string) => ipcRenderer.invoke(IPC.reportOpenHtml, runId),
+  exportEvidence: (runId: string) =>
+    ipcRenderer.invoke(IPC.reportExportEvidence, runId),
   appInfo: () => ipcRenderer.invoke(IPC.appInfo),
-});
+};
+
+contextBridge.exposeInMainWorld("antigravity", api);
+
+export type AntigravityApi = typeof api;

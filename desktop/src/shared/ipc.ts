@@ -34,4 +34,6 @@ export type ScanResult =
       message: string;
     };
 
+export type ExportEvidenceResult = { ok: boolean; savedTo?: "user-chosen" };
+
 export type AppInfo = { version: string; isAdmin: boolean; mock: boolean };

@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "2026-10-28T12-00-00Z_abcd",
+  "generated_at": "2026-10-28T12:00:01Z",
+  "engine_version": "0.1.0",
+  "baseline_version": "2026-10-01",
+  "overall": "green",
+  "summary": "This PC is in good shape. Keep it that way.",
+  "categories": [
+    {
+      "id": "backup",
+      "title": "Backup evidence",
+      "status": "green",
+      "explanation": "File History backed up this PC recently.",
+      "evidence": [
+        {
+          "label": "File History",
+          "value": "Last backup 27 Oct 2026",
+          "status": "green"
+        }
+      ],
+      "fix_ids": []
+    },
+    {
+      "id": "patch",
+      "title": "Windows updates",
+      "status": "green",
+      "explanation": "Windows is up to date.",
+      "evidence": [
+        {
+          "label": "Latest update",
+          "value": "KB5044285 on 20 Oct 2026",
+          "status": "green"
+        }
+      ],
+      "fix_ids": []
+    },
+    {
+      "id": "software",
+      "title": "Outdated software",
+      "status": "green",
+      "explanation": "All checked software is up to date.",
+      "evidence": [
+        {
+          "label": "Google Chrome",
+          "value": "130.0.0.0",
+          "status": "green"
+        }
+      ],
+      "fix_ids": []
+    },
+    {
+      "id": "protection",
+      "title": "Ransomware protections",
+      "status": "green",
+      "explanation": "Microsoft Defender and BitLocker are active.",
+      "evidence": [
+        {
+          "label": "Defender antivirus",
+          "value": "On",
+          "status": "green"
+        }
+      ],
+      "fix_ids": []
+    },
+    {
+      "id": "recovery",
+      "title": "Recovery readiness",
+      "status": "green",
+      "explanation": "Windows RE and System Restore are enabled.",
+      "evidence": [
+        {
+          "label": "System Restore",
+          "value": "Enabled",
+          "status": "green"
+        }
+      ],
+      "fix_ids": []
+    }
+  ],
+  "fixes": [],
+  "top_fixes": [],
+  "scan": {
+    "is_admin": true,
+    "duration_ms": 1000,
+    "os_caption": "Microsoft Windows 11 Pro"
+  }
+}
