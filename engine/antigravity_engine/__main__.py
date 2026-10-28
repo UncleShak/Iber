@@ -84,7 +84,8 @@ def assess(scan: ScanModel, baseline: Baseline) -> dict:
 
 def write_json(report: dict, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    text = json.dumps(report, indent=2, ensure_ascii=False) + "\n"
+    # ASCII on disk (D6): non-ASCII text such as the em dash is written as \uXXXX.
+    text = json.dumps(report, indent=2, ensure_ascii=True) + "\n"
     path.write_text(text, encoding="utf-8", newline="\n")
 
 

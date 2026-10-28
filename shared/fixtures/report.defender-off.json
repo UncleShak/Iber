@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "run_id": "2026-11-14T17-02-44Z_0003",
-  "generated_at": "2026-10-28T00:23:49Z",
+  "generated_at": "2026-10-28T00:27:44Z",
   "engine_version": "0.1.0",
   "baseline_version": "2026-10-27",
   "overall": "red",
@@ -19,7 +19,7 @@
         },
         {
           "label": "Windows Backup",
-          "value": "Not checked — needs admin",
+          "value": "Not checked \u2014 needs admin",
           "status": "unavailable"
         },
         {
@@ -33,7 +33,7 @@
         },
         {
           "label": "Shadow copies",
-          "value": "Not checked — needs admin",
+          "value": "Not checked \u2014 needs admin",
           "status": "unavailable"
         }
       ],
@@ -105,7 +105,7 @@
         },
         {
           "label": "Drive encryption",
-          "value": "Not checked — needs admin",
+          "value": "Not checked \u2014 needs admin",
           "status": "unavailable"
         },
         {
@@ -129,7 +129,7 @@
       "evidence": [
         {
           "label": "Windows recovery tools",
-          "value": "Not checked — needs admin",
+          "value": "Not checked \u2014 needs admin",
           "status": "unavailable"
         },
         {
@@ -139,12 +139,12 @@
         },
         {
           "label": "Restore points",
-          "value": "Not checked — needs admin",
+          "value": "Not checked \u2014 needs admin",
           "status": "unavailable"
         },
         {
           "label": "Newest restore point",
-          "value": "Not checked — needs admin",
+          "value": "Not checked \u2014 needs admin",
           "status": "unavailable"
         }
       ],

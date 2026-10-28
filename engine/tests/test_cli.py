@@ -156,6 +156,17 @@ def test_json_only_writes_only_report_json(tmp_path):
     assert {p.name for p in (tmp_path / "out").iterdir()} == {"report.json"}
 
 
+def test_report_json_is_ascii_but_keeps_the_em_dash(tmp_path):
+    # D6: escaped on disk, the same text once parsed.
+    out = tmp_path / "out"
+    assert _run(FIXTURES / "scan.defender-off.json", out, "--json-only") == 0
+    raw = (out / "report.json").read_bytes()
+    assert raw.isascii()
+    assert b"\\u2014" in raw
+    values = [row["value"] for c in _report(out)["categories"] for row in c["evidence"]]
+    assert "Not checked \u2014 needs admin" in values
+
+
 @pytest.mark.parametrize("path", sorted(FIXTURES.glob("scan.*.json")), ids=lambda p: p.name)
 def test_fixture_writes_all_three_outputs(path, tmp_path):
     out = tmp_path / "out"

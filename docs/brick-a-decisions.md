@@ -17,7 +17,7 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 | D3 | Strict CategoryResult guards | Medium | Before phase 4 | CHANGED 2026-10-28 (Tshedi) |
 | D4 | Error report summary and run_id | Medium | Phase 7 (CLI) | OPEN |
 | D5 | generated_at uses the wall clock | Low | Phase 7 / s2.14 work | OPEN |
-| D6 | Em dash written as an escape | Low | Any time | OPEN |
+| D6 | Em dash written as an escape | Low | Any time | CHANGED 2026-10-28 (Tshedi) |
 | D7 | Software rule evaluation order | High | Phase 5 | DECIDED 2026-10-28 (phase-5 prompt) |
 | D8 | Run-specific fix steps | Medium | Phase 7 (CLI) | DECIDED 2026-10-28 (Tshedi) |
 | D9 | R2 fix when System Restore is on | Low | Any time | CHANGED 2026-10-28 (Tshedi) |
@@ -195,20 +195,25 @@ wall-clock timestamp breaks that.
 
 ## D6. Em dash written as an escape
 
+**Status.** CHANGED 2026-10-28 by Tshedi: report.json is written with
+`ensure_ascii=True` once committed report fixtures made it a repo file.
+
 **Gap.** s0.8 shows "Not checked \u2014 needs admin" with an em dash;
 CLAUDE.md requires ASCII-only files.
 
-**Solution in code.** Source files use the escape `\u2014`, so the files
-stay ASCII but report.json and the HTML still show a real em dash.
+**Solution in code.** Source files use the escape `\u2014`. report.json is
+written with `ensure_ascii=True`, so the file on disk (and every
+shared/fixtures/report.*.json) is ASCII with `\u2014` escapes, while any
+JSON reader gets the same em dash text as s0.8. report.html still holds a
+real em dash; it goes to out/, which is not committed.
 Files: `engine/antigravity_engine/scoring/result.py`,
-`engine/tests/test_aggregator.py`.
-
-**Why revisit.** Only if "ASCII only" is meant to cover engine output too,
-or the PDF font lacks the glyph (check in phase 9).
+`engine/antigravity_engine/__main__.py` (`write_json`).
+Tests: `test_report_json_is_ascii_but_keeps_the_em_dash` (test_cli.py).
 
 **Alternatives.**
-- Keep the escape (current).
-- Use "Not checked - needs admin" everywhere.
+- Write raw UTF-8 and read "ASCII only" as source files only (previous).
+- Use "Not checked - needs admin" everywhere (changes user-visible text
+  away from s0.8).
 
 ---
 
