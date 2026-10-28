@@ -603,7 +603,7 @@ def _all_states(report: dict) -> dict:
     for c, status in zip(out["categories"], statuses):
         c["status"] = status
     out["categories"][3]["evidence"].append(
-        {"label": "BitLocker", "value": "Not checked — needs admin", "status": "unavailable"})
+        {"label": "BitLocker", "value": "Not checked \u2014 needs admin", "status": "unavailable"})
     out["categories"][4]["evidence"] = [
         {"label": "System Restore", "value": "Cmdlet threw", "status": "failed"}]
     out["scan"]["is_admin"] = False
@@ -746,7 +746,7 @@ def test_pdf_every_drawn_string_encodes_cp1252(path, baseline, tmp_path, monkeyp
 
 
 def test_pdf_arrow_becomes_greater_than():
-    assert pdf.pdf_text("Open Start → Windows Security") == "Open Start > Windows Security"
+    assert pdf.pdf_text("Open Start \u2192 Windows Security") == "Open Start > Windows Security"
 
 
 def test_pdf_long_org_truncated_in_header(defender_off, tmp_path, monkeypatch):
