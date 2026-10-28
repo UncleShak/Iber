@@ -34,7 +34,7 @@ function Invoke-Probe {
         $result.error  = ConvertTo-AgSafeError $_.Exception.Message
     } catch {
         $result.status = 'failed'
-        $result.error  = ConvertTo-AgSafeError ($_.Exception.GetType().Name + ': ' + $_.Exception.Message)
+        $result.error  = ConvertTo-AgSafeError ($_.CategoryInfo.Reason + ': ' + $_.Exception.Message)
     }
     return $result
 }
