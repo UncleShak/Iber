@@ -99,14 +99,15 @@ prints `VERIFIED` (RPT-11).
 ## How the app calls the engine
 
 ```
-engine.exe --in <run folder>\scan.json --out <run folder> --baseline <resources>\baseline\software-baseline.json --run-id <run_id>
+engine.exe --in <run folder>\scan.json --out <run folder> --baseline <resources>\baseline\software-baseline.json --run-id <run_id> --org "<licence org>"
 engine.exe --verify <evidence.json> --baseline <resources>\baseline\software-baseline.json
 ```
 
 `--run-id` is the run folder name. If scan.json can't be read (exit 2), the error
 report.json carries this run_id so the app finds it. For a readable scan the report
 keeps the scan's own run_id (a mismatch only prints a warning), so pass `-RunId` to the
-collector too. Exit codes: 0 ok, 1 crash, 2 bad input, 3 render failed, 5 TAMPERED,
+collector too. `--org` is the verified licence organisation: it appears in the HTML and
+PDF headers only, never in report.json or evidence.json. Exit codes: 0 ok, 1 crash, 2 bad input, 3 render failed, 5 TAMPERED,
 6 CANNOT_VERIFY.
 
 ## What Schwan (Brick D) receives

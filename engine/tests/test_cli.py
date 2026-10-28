@@ -278,3 +278,67 @@ def test_mismatched_run_id_bundle_still_verifies(tmp_path, capsys):
     assert _run(HEALTHY, out, "--json-only", "--run-id", APP_RUN_ID) == 0
     baseline = ROOT / "baseline" / "software-baseline.json"
     assert cli.main(["--verify", str(out / "evidence.json"), "--baseline", str(baseline)]) == 0
+
+
+# --- --org (D16) ---
+
+XSS_ORG = "<script>alert(1)</script>Acme"
+
+
+def _pdf_text(monkeypatch) -> list[str]:
+    from antigravity_engine.render import pdf
+
+    drawn = []
+    real = pdf._text
+    monkeypatch.setattr(pdf, "_text", lambda c, x, y, text, *a, **k: (
+        drawn.append(text), real(c, x, y, text, *a, **k)))
+    return drawn
+
+
+def test_org_in_html_and_pdf_header(tmp_path, monkeypatch):
+    drawn = _pdf_text(monkeypatch)
+    out = tmp_path / "out"
+    assert _run(HEALTHY, out, "--org", "Acme Bakery") == 0
+    assert "Licensed to Acme Bakery" in (out / "report.html").read_text("utf-8")
+    assert any(t.startswith("Acme Bakery ") for t in drawn)
+
+
+@pytest.mark.parametrize("extra", [(), ("--org", ""), ("--org", "   ")])
+def test_no_org_line_without_a_name(tmp_path, extra):
+    out = tmp_path / "out"
+    assert _run(HEALTHY, out, *extra) == 0
+    assert "Licensed to" not in (out / "report.html").read_text("utf-8")
+
+
+def test_org_is_trimmed(tmp_path):
+    out = tmp_path / "out"
+    assert _run(HEALTHY, out, "--org", "  Acme Bakery  ") == 0
+    assert "Licensed to Acme Bakery</p>" in (out / "report.html").read_text("utf-8")
+
+
+def test_org_is_escaped_in_html(tmp_path):
+    out = tmp_path / "out"
+    assert _run(HEALTHY, out, "--org", XSS_ORG) == 0
+    page = (out / "report.html").read_text("utf-8")
+    assert "<script>alert" not in page
+    assert "Licensed to &lt;script&gt;alert(1)&lt;/script&gt;Acme" in page
+
+
+def test_org_never_reaches_report_or_evidence(tmp_path, capsys):
+    out = tmp_path / "out"
+    assert _run(HEALTHY, out, "--org", "Acme Bakery") == 0
+    assert "Acme" not in (out / "report.json").read_text("utf-8")
+    assert "Acme" not in (out / "evidence.json").read_text("utf-8")
+    baseline = ROOT / "baseline" / "software-baseline.json"
+    assert cli.main(["--verify", str(out / "evidence.json"), "--baseline", str(baseline)]) == 0
+
+
+def test_org_does_not_change_report_json(tmp_path):
+    a, b = tmp_path / "a", tmp_path / "b"
+    assert _run(HEALTHY, a, "--json-only") == 0
+    assert _run(HEALTHY, b, "--json-only", "--org", "Acme Bakery") == 0
+    ra = json.loads((a / "report.json").read_text("utf-8"))
+    rb = json.loads((b / "report.json").read_text("utf-8"))
+    ra.pop("generated_at")
+    rb.pop("generated_at")
+    assert ra == rb

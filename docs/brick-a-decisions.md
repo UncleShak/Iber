@@ -27,7 +27,7 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 | D13 | When CFA/ASR are excluded; third-party AV always green | High | Phase 6 | DECIDED 2026-10-28 (Tshedi) |
 | D14 | Null fields and all-grey protection category | Medium | Phase 6 | DECIDED 2026-10-28 (Tshedi) |
 | D15 | All-null recovery section rated green | Medium | Any time | CHANGED 2026-10-28 (Tshedi) |
-| D16 | Licence org in the HTML header | Low | Phase 10 / integration | OPEN |
+| D16 | Licence org in the HTML header | Low | Phase 10 / integration | CHANGED 2026-10-28 (Tshedi) |
 | D17 | Failed protection sub-check shown as unavailable | High | Phase 10 | CHANGED 2026-10-28 (phase-10 RPT-01) |
 | D18 | Backup B4/B5/B7 rows carried no status | High | Phase 10 | CHANGED 2026-10-28 (phase-10 RPT-02) |
 | D19 | Evidence bundle gaps in s2.14 | Medium | Before RPT-11 | OPEN |
@@ -497,6 +497,17 @@ evidence behind it. A green category also counts toward the risk score
 ## D16. Licence org in the HTML header
 
 Logged: 2026-10-28, phase 8.
+
+**Status.** CHANGED 2026-10-28 by Tshedi: new CLI flag `--org NAME`. The app
+verifies the licence and passes only the org name; the engine prints
+"Licensed to {org}" in the report.html header and the org in the PDF header
+(shortened there if long). Blank or whitespace-only means no org line. The org
+is never written to report.json or evidence.json, so the contract and the
+Evidence ID are unchanged, and --verify does not check it: it names the licence
+holder, not anything the scan measured.
+Tests: `test_org_*`, `test_no_org_line_without_a_name` (test_cli.py).
+
+The original entry follows.
 
 **Gap.** s4.10 puts "licence org" in the report.html header, but s2.3 row 9
 says renderers read only the report model, and report.json (s0.8) has no

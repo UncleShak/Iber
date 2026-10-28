@@ -106,13 +106,15 @@ def _baseline_version(path: Path) -> str:
         return UNKNOWN_BASELINE
 
 
-def _render(report: dict, out_dir: Path, evidence_id: str | None = None) -> None:
+def _render(
+    report: dict, out_dir: Path, evidence_id: str | None = None, org: str | None = None
+) -> None:
     # Imported here so a broken renderer dependency is a render failure (exit 3),
     # not a crash before report.json exists.
     from antigravity_engine.render import html, pdf
 
-    html.render(report, out_dir / REPORT_HTML, evidence_id=evidence_id)
-    pdf.render(report, out_dir / ACTION_PLAN_PDF, evidence_id=evidence_id)
+    html.render(report, out_dir / REPORT_HTML, org=org, evidence_id=evidence_id)
+    pdf.render(report, out_dir / ACTION_PLAN_PDF, org=org, evidence_id=evidence_id)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -124,6 +126,8 @@ def _parser() -> argparse.ArgumentParser:
     ap.add_argument("--baseline", metavar="PATH", help="software-baseline.json")
     ap.add_argument("--run-id", metavar="ID",
                     help="the app's run folder name; used for the error report if the scan can't be read")
+    ap.add_argument("--org", metavar="NAME",
+                    help="licence organisation for the HTML and PDF header (D16); never in report.json")
     ap.add_argument("--json-only", action="store_true", help="skip report.html and action-plan.pdf")
     ap.add_argument("--version", action="store_true", help="print versions and exit")
     ap.add_argument("--verify", metavar="PATH",
@@ -186,7 +190,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.json_only:
         return EXIT_OK
     try:
-        _render(report, out_dir, bundle["evidence_id"])
+        # D16: the app verifies the licence and passes only the org name.
+        org = (args.org or "").strip() or None
+        _render(report, out_dir, bundle["evidence_id"], org)
     except Exception:
         print("antigravity-engine: rendering failed:", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
