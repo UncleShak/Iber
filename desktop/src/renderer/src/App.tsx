@@ -74,7 +74,7 @@ export default function App() {
         <LicenseScreen
           onSuccess={(l) => {
             setLicense(l);
-            triggerScan();
+            setState("results");
           }}
         />
       )}
