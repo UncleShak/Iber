@@ -1,0 +1,160 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "2026-11-14T17-31-02Z_0005",
+  "generated_at": "2026-10-28T01:57:40Z",
+  "engine_version": "0.1.0",
+  "baseline_version": "2026-10-27",
+  "overall": "green",
+  "summary": "This PC is in good shape. Keep it that way.",
+  "categories": [
+    {
+      "id": "backup",
+      "title": "Backup evidence",
+      "status": "green",
+      "explanation": "Your newest backup finished 1 day ago. Keep backing up at least weekly.",
+      "evidence": [
+        {
+          "label": "File History last backup",
+          "value": "13 Nov 2026 (1 day ago)",
+          "status": "green"
+        },
+        {
+          "label": "Windows Backup",
+          "value": "No completed backup found"
+        },
+        {
+          "label": "Backup programs found",
+          "value": "<script>alert(1)</script><img src=x onerror=alert(2)>"
+        },
+        {
+          "label": "OneDrive folder sync",
+          "value": "Desktop, Documents, Pictures (sync, not a backup)"
+        },
+        {
+          "label": "Shadow copies",
+          "value": "3 snapshots (not a backup)"
+        }
+      ],
+      "fix_ids": []
+    },
+    {
+      "id": "patch",
+      "title": "Patch status",
+      "status": "green",
+      "explanation": "Windows updates are current: the newest was installed 9 days ago.",
+      "evidence": [
+        {
+          "label": "Newest Windows update",
+          "value": "5 Nov 2026 (9 days ago), KB5044285",
+          "status": "green"
+        },
+        {
+          "label": "Updates installed",
+          "value": "14 updates"
+        },
+        {
+          "label": "Restart needed to finish updates",
+          "value": "No",
+          "status": "green"
+        },
+        {
+          "label": "Windows version",
+          "value": "<script>alert(1)</script><img src=x onerror=alert(2)> (build 22631)",
+          "status": "green"
+        }
+      ],
+      "fix_ids": []
+    },
+    {
+      "id": "software",
+      "title": "Outdated software",
+      "status": "green",
+      "explanation": "The 3 programs on our watch list are up to date.",
+      "evidence": [
+        {
+          "label": "Google Chrome",
+          "value": "142.0.7444.175, up to date",
+          "status": "green"
+        },
+        {
+          "label": "Adobe Acrobat Reader",
+          "value": "25.001.20937, up to date",
+          "status": "green"
+        },
+        {
+          "label": "7-Zip",
+          "value": "25.00, up to date",
+          "status": "green"
+        },
+        {
+          "label": "Other programs",
+          "value": "1 other app not on our watch list"
+        }
+      ],
+      "fix_ids": []
+    },
+    {
+      "id": "protection",
+      "title": "Ransomware protections",
+      "status": "green",
+      "explanation": "The protections we could check are all on.",
+      "evidence": [
+        {
+          "label": "Antivirus",
+          "value": "Protected by <script>alert(1)</script><img src=x onerror=alert(2)>",
+          "status": "green"
+        },
+        {
+          "label": "Drive encryption",
+          "value": "BitLocker is on",
+          "status": "green"
+        },
+        {
+          "label": "Controlled folder access",
+          "value": "Only works when Microsoft Defender is your antivirus"
+        },
+        {
+          "label": "Anti-ransomware rules",
+          "value": "Only works when Microsoft Defender is your antivirus"
+        }
+      ],
+      "fix_ids": []
+    },
+    {
+      "id": "recovery",
+      "title": "Recovery readiness",
+      "status": "green",
+      "explanation": "The Windows recovery tools and System Restore are on, with a restore point from 4 days ago.",
+      "evidence": [
+        {
+          "label": "Windows recovery tools",
+          "value": "On",
+          "status": "green"
+        },
+        {
+          "label": "System Restore",
+          "value": "On",
+          "status": "green"
+        },
+        {
+          "label": "Restore points",
+          "value": "2",
+          "status": "green"
+        },
+        {
+          "label": "Newest restore point",
+          "value": "10 Nov 2026 (4 days ago)",
+          "status": "green"
+        }
+      ],
+      "fix_ids": []
+    }
+  ],
+  "fixes": [],
+  "top_fixes": [],
+  "scan": {
+    "is_admin": true,
+    "duration_ms": 8015,
+    "os_caption": "<script>alert(1)</script><img src=x onerror=alert(2)>"
+  }
+}
