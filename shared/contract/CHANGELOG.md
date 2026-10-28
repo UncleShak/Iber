@@ -41,5 +41,5 @@ Needs Shakir's agree (s0.10).
 
 | Who | Role | Agreed (date/time) |
 |---|---|---|
-| Shakir | Contract owner (B) | |
+| Shakir | Contract owner (B) | 2026-10-28 (verbal; recorded by Tshedi on his behalf) |
 | Tshedi | Lead (A) | |
