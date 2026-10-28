@@ -15,8 +15,31 @@ dist/
 out/
 .pytest_cache/
 .ruff_cache/
-.DS_Store
-docs/security-evidence/
+
+# Offline prep: wheelhouse, Sysinternals tools (manual §1.5)
+.offline/
+
+# Licence: expired/test tokens (manual §3.11)
 tools/demo-tokens.txt
+
+# Electron build output (manual §5.1)
+release/
+
+# Demo fallback artefacts — keep only the README (manual §9.6)
 fallback/*
 !fallback/README.md
+
+# Security evidence may contain machine details (manual §7.1)
+docs/security-evidence/
+
+# Generated at build time (manual §5.8)
+desktop/src/main/resource-hashes.json
+
+# Local secrets, just in case
+*.env
+.antigravity-private.pem
+
+# Personal Claude Code / Academy setup (Shakir only)
+CLAUDE.md
+.claude/
+.claude/agora.md
