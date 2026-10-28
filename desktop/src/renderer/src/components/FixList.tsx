@@ -1,23 +1,34 @@
-import { ShieldAlert } from "lucide-react";
+import { Lock, ShieldAlert } from "lucide-react";
+import type { Fix } from "../lib/reportSchema";
 
-export default function FixList({ fixes }: { fixes: any[] }) {
-  if (!fixes || fixes.length === 0) return null;
+export default function FixList({ fixes }: { fixes: Fix[] }) {
+  if (!fixes.length) return null;
 
   return (
-    <section className="bg-white p-6 rounded-lg border shadow-sm mb-8">
-      <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-        <ShieldAlert className="w-5 h-5 text-rag-red"/> Your top 3 fixes
+    <section className="mb-8 rounded-lg border bg-white p-6 shadow-sm">
+      <h2 className="mb-4 flex items-center gap-2 text-xl font-bold">
+        <ShieldAlert className="h-5 w-5 text-rag-red" /> Your top 3 fixes
       </h2>
       <div className="grid gap-4 md:grid-cols-3">
-        {fixes.map((fix, i) => (
-          <div key={fix.id} className="border p-4 rounded-md bg-gray-50">
-            <h3 className="font-bold text-sm mb-2">{i + 1}. {fix.title}</h3>
-            <p className="text-xs text-gray-600 mb-3">{fix.why}</p>
-            <ul className="text-xs list-disc pl-4 space-y-1 text-gray-700">
-              {fix.steps.map((s: string, j: number) => <li key={j}>{s}</li>)}
+        {fixes.slice(0, 3).map((fix, i) => (
+          <div key={fix.id} className="rounded-md border bg-gray-50 p-4">
+            <h3 className="mb-2 text-sm font-bold">
+              {i + 1}. {fix.title}
+            </h3>
+            <p className="mb-3 text-xs text-gray-600">{fix.why}</p>
+            <ul className="list-disc space-y-1 pl-4 text-xs text-gray-700">
+              {fix.steps.map((s, j) => (
+                <li key={j}>{s}</li>
+              ))}
             </ul>
-            <p className="text-xs text-gray-500 mt-4 italic">
-              ~{fix.effort_minutes} min {fix.needs_admin && "· Needs Admin"}
+            <p className="mt-4 flex items-center gap-1 text-xs italic text-gray-500">
+              {`~${fix.effort_minutes} min`}
+              {fix.needs_admin && (
+                <>
+                  {" \u00b7 "}
+                  <Lock className="h-3 w-3" aria-hidden="true" /> Needs admin
+                </>
+              )}
             </p>
           </div>
         ))}

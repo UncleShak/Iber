@@ -1,0 +1,184 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "2026-11-14T17-02-44Z_beef",
+  "generated_at": "2026-11-14T17:02:46Z",
+  "engine_version": "0.1.0",
+  "baseline_version": "2026-11-01",
+  "overall": "red",
+  "summary": "2 urgent issues need attention this week. Some checks couldn't run.",
+  "categories": [
+    {
+      "id": "backup",
+      "title": "Backup evidence",
+      "status": "green",
+      "explanation": "File History backed up this PC yesterday.",
+      "evidence": [
+        {
+          "label": "File History",
+          "value": "Last backup 13 Nov 2026",
+          "status": "green"
+        },
+        {
+          "label": "OneDrive folders",
+          "value": "Desktop, Documents",
+          "status": "green"
+        },
+        {
+          "label": "Shadow copies",
+          "value": "Not checked — needs admin",
+          "status": "unavailable"
+        }
+      ],
+      "fix_ids": []
+    },
+    {
+      "id": "patch",
+      "title": "Windows updates",
+      "status": "amber",
+      "explanation": "The newest update was installed 55 days ago, and a restart is waiting to finish updates.",
+      "evidence": [
+        {
+          "label": "Latest update",
+          "value": "KB5043064 on 20 Sep 2026",
+          "status": "amber"
+        },
+        {
+          "label": "Restart needed",
+          "value": "Yes",
+          "status": "amber"
+        }
+      ],
+      "fix_ids": [
+        "install-updates"
+      ]
+    },
+    {
+      "id": "software",
+      "title": "Outdated software",
+      "status": "red",
+      "explanation": "Google Chrome is out of date and has known security holes.",
+      "evidence": [
+        {
+          "label": "Google Chrome",
+          "value": "118.0.5993.118 (needs 131 or newer)",
+          "status": "red"
+        },
+        {
+          "label": "Other apps",
+          "value": "42 apps not on our watch list"
+        }
+      ],
+      "fix_ids": [
+        "update-outdated-apps"
+      ]
+    },
+    {
+      "id": "protection",
+      "title": "Ransomware protections",
+      "status": "red",
+      "explanation": "Microsoft Defender antivirus is switched off, so nothing is scanning for ransomware.",
+      "evidence": [
+        {
+          "label": "Defender antivirus",
+          "value": "Off",
+          "status": "red"
+        },
+        {
+          "label": "Controlled Folder Access",
+          "value": "Disabled",
+          "status": "amber"
+        },
+        {
+          "label": "BitLocker (C:)",
+          "value": "Not checked — needs admin",
+          "status": "unavailable"
+        },
+        {
+          "label": "ASR rules",
+          "value": "Couldn't read: settings unavailable",
+          "status": "failed"
+        }
+      ],
+      "fix_ids": [
+        "enable-defender",
+        "enable-cfa"
+      ]
+    },
+    {
+      "id": "recovery",
+      "title": "Recovery readiness",
+      "status": "failed",
+      "explanation": "This check couldn't run on this PC.",
+      "evidence": [],
+      "fix_ids": []
+    }
+  ],
+  "fixes": [
+    {
+      "id": "enable-defender",
+      "category": "protection",
+      "severity": "red",
+      "title": "Turn Microsoft Defender back on",
+      "why": "Without antivirus, ransomware can run unnoticed.",
+      "steps": [
+        "Open Start and search for Windows Security",
+        "Go to Virus & threat protection",
+        "Under settings, choose Manage settings",
+        "Switch Real-time protection On"
+      ],
+      "effort_minutes": 5,
+      "needs_admin": true
+    },
+    {
+      "id": "update-outdated-apps",
+      "category": "software",
+      "severity": "red",
+      "title": "Update Google Chrome",
+      "why": "Old browsers are a common way attackers get in.",
+      "steps": [
+        "Open Chrome → Settings → About Chrome",
+        "Wait for the update, then click Relaunch"
+      ],
+      "effort_minutes": 5,
+      "needs_admin": false
+    },
+    {
+      "id": "install-updates",
+      "category": "patch",
+      "severity": "amber",
+      "title": "Install Windows updates and restart",
+      "why": "Updates close the holes ransomware uses to get in.",
+      "steps": [
+        "Open Settings → Windows Update",
+        "Click Check for updates",
+        "Restart when asked"
+      ],
+      "effort_minutes": 30,
+      "needs_admin": true
+    },
+    {
+      "id": "enable-cfa",
+      "category": "protection",
+      "severity": "amber",
+      "title": "Turn on Controlled Folder Access",
+      "why": "It stops unknown apps from changing your documents.",
+      "steps": [
+        "Open Windows Security → Virus & threat protection",
+        "Choose Manage ransomware protection",
+        "Switch Controlled folder access On"
+      ],
+      "effort_minutes": 5,
+      "needs_admin": true
+    }
+  ],
+  "top_fixes": [
+    "enable-defender",
+    "update-outdated-apps",
+    "install-updates"
+  ],
+  "scan": {
+    "is_admin": false,
+    "duration_ms": 6230,
+    "os_caption": "Microsoft Windows 10 Pro"
+  }
+}
