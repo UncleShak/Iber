@@ -93,9 +93,9 @@ def test_xss_fixture_renders_without_raw_script(baseline):
 
 
 def test_xss_app_name_is_escaped_wherever_the_report_carries_it(baseline):
-    # The xss app isn't on the watch list, so the engine only counts it; put the
-    # fixture's own name into every scan-driven text field to prove escaping.
-    name = json.loads(XSS.read_text(encoding="utf-8"))["software"]["installed"][0]["name"]
+    # Put the fixture's own payload into every scan-driven text field, including
+    # ones the xss scan itself cannot reach, to prove escaping everywhere.
+    name = json.loads(XSS.read_text(encoding="utf-8"))["host"]["os_caption"]
     report = copy.deepcopy(_report(FIXTURES / "scan.defender-off.json", baseline))
     software = next(c for c in report["categories"] if c["id"] == "software")
     software["evidence"][0]["label"] = name

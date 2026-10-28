@@ -8,6 +8,7 @@ import pytest
 
 from antigravity_engine import __main__ as cli
 from antigravity_engine import evidence
+from antigravity_engine.parser import validate_schema
 from conftest import FIXTURES, ROOT
 
 SCANS = sorted(FIXTURES.glob("scan.*.json"))
@@ -138,8 +139,7 @@ def test_same_scan_twice_gives_same_report_hash(scan_path, tmp_path):
 
 def test_bundle_fields_and_hashes(healthy):
     scan = json.loads((FIXTURES / "scan.healthy.json").read_text(encoding="utf-8"))
-    validator = evidence.Draft202012Validator(evidence.EVIDENCE_SCHEMA)
-    assert list(validator.iter_errors(healthy)) == []
+    validate_schema(healthy, "evidence.schema.json")
     assert healthy["evidence_version"] == "1.0.0"
     assert healthy["scan"] == scan
     assert healthy["run_id"] == scan["run_id"] == healthy["report"]["run_id"]

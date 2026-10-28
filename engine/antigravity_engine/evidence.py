@@ -13,14 +13,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from jsonschema import Draft202012Validator
-from jsonschema.exceptions import best_match
-
 from antigravity_engine import __version__
 from antigravity_engine.clock import fmt_date, now
 from antigravity_engine.baseline import Baseline, BaselineError, load_baseline
 from antigravity_engine.contract import ScanModel
-from antigravity_engine.parser import ContractError, load_json, parse_dict
+from antigravity_engine.parser import ContractError, load_json, parse_dict, validate_schema
 
 EVIDENCE_VERSION = "1.0.0"
 SUPPORTED_MAJOR = "1"
@@ -33,29 +30,7 @@ CANNOT_VERIFY = 6
 
 NOT_EVIDENCE = "CANNOT_VERIFY: not an Antigravity evidence file"
 
-_SHA = {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
-# Appendix A.3. Kept here until shared/contract/evidence.schema.json exists (Brick B owns it).
-EVIDENCE_SCHEMA = {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "type": "object",
-    "required": [
-        "evidence_version", "run_id", "created_at", "engine_version", "baseline_version",
-        "baseline_sha256", "scan", "report", "scan_sha256", "report_sha256", "evidence_id",
-    ],
-    "properties": {
-        "evidence_version": {"type": "string", "pattern": "^1\\.\\d+\\.\\d+$"},
-        "run_id": {"type": "string"},
-        "created_at": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"},
-        "engine_version": {"type": "string"},
-        "baseline_version": {"type": "string"},
-        "baseline_sha256": _SHA,
-        "scan": {"type": "object"},
-        "report": {"type": "object"},
-        "scan_sha256": _SHA,
-        "report_sha256": _SHA,
-        "evidence_id": {"type": "string", "pattern": "^AG-[0-9a-f]{12}$"},
-    },
-}
+EVIDENCE_SCHEMA = "evidence.schema.json"
 
 Assess = Callable[[ScanModel, Baseline], dict]
 
@@ -140,7 +115,7 @@ def _not_checked(report: dict) -> int:
 
 
 def _load(path: Path) -> dict | None:
-    """Step 1: size, JSON, evidence_version major 1, A.3 shape."""
+    """Step 1: size, JSON, evidence_version major 1, shared/contract/evidence.schema.json."""
     try:
         if path.stat().st_size > MAX_BYTES:
             return None
@@ -152,7 +127,9 @@ def _load(path: Path) -> dict | None:
     version = data.get("evidence_version")
     if not isinstance(version, str) or version.split(".")[0] != SUPPORTED_MAJOR:
         return None
-    if best_match(Draft202012Validator(EVIDENCE_SCHEMA).iter_errors(data)) is not None:
+    try:
+        validate_schema(data, EVIDENCE_SCHEMA)
+    except ContractError:
         return None
     return data
 

@@ -7,7 +7,7 @@ import pytest
 
 from antigravity_engine import paths
 
-SCHEMAS = ["scan.schema.json", "report.schema.json"]
+SCHEMAS = ["scan.schema.json", "report.schema.json", "evidence.schema.json"]
 
 
 @pytest.fixture

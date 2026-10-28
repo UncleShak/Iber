@@ -8,6 +8,7 @@ import json
 import warnings
 
 import pytest
+from markupsafe import escape
 
 from antigravity_engine import __main__ as cli
 from antigravity_engine.parser import parse_path, validate_schema
@@ -66,12 +67,13 @@ def test_home_edition_protection_fix_is_encrypt_device_home(tmp_path):
 def test_xss_name_is_escaped_in_html(tmp_path):
     report = _run(FIXTURES / "scan.xss.json", tmp_path)
     assert report["overall"] == "green"
-    # The app isn't on the watch list, so the page only counts it; escaping of the
-    # name itself when it is printed is covered in test_render.py.
+    # The payload reaches the page as the backup program, Windows version,
+    # "Protected by" antivirus row and footer OS caption (RPT-07); all escaped.
     page = (tmp_path / cli.REPORT_HTML).read_text(encoding="utf-8")
     assert XSS_NAME not in page
     assert "<script>alert" not in page
     assert "<img" not in page
+    assert page.count(str(escape(XSS_NAME))) == 4
 
 
 @pytest.mark.parametrize("path", SCAN_FIXTURES, ids=lambda p: p.name)

@@ -12,6 +12,7 @@ a = Analysis(
         ("antigravity_engine/templates", "antigravity_engine/templates"),
         (str(ROOT / "shared/contract/scan.schema.json"), "contract"),
         (str(ROOT / "shared/contract/report.schema.json"), "contract"),
+        (str(ROOT / "shared/contract/evidence.schema.json"), "contract"),
         (str(ROOT / "baseline/software-baseline.schema.json"), "contract"),
     ],
     hiddenimports=[],

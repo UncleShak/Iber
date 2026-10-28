@@ -37,9 +37,13 @@ def test_unavailable_section_and_nulls():
     assert scan.recovery.winre_enabled is None
 
 
-def test_xss_name_kept_verbatim():
+def test_xss_payload_kept_verbatim():
+    payload = "<script>alert(1)</script><img src=x onerror=alert(2)>"
     scan = parse_path(FIXTURES / "scan.xss.json")
-    assert scan.software.installed[0].name == "<script>alert(1)</script><img src=x onerror=alert(2)>"
+    assert scan.host.os_caption == payload
+    assert payload in scan.backup.third_party_agents
+    assert scan.protection.defender.third_party_av == payload
+    assert payload in [app.name for app in scan.software.installed]
 
 
 def test_unknown_keys_ignored(make_raw):

@@ -23,6 +23,7 @@ What `engine.spec` bundles (paths inside `_internal/`):
 | `engine/antigravity_engine/templates/` | `antigravity_engine/templates/` |
 | `shared/contract/scan.schema.json` | `contract/scan.schema.json` |
 | `shared/contract/report.schema.json` | `contract/report.schema.json` |
+| `shared/contract/evidence.schema.json` | `contract/evidence.schema.json` |
 | `baseline/software-baseline.schema.json` | `contract/software-baseline.schema.json` |
 
 Excluded: `tkinter`, `unittest`, `pytest`. The baseline data file is **not** bundled;
@@ -60,7 +61,7 @@ Frozen means `sys.frozen` is set and `sys._MEIPASS` exists (that is, `_internal/
 
 | What | Frozen | Dev (`python -m antigravity_engine`) |
 |---|---|---|
-| scan / report schema | `<_MEIPASS>/contract/<name>` | `<repo>/shared/contract/<name>` |
+| scan / report / evidence schema | `<_MEIPASS>/contract/<name>` | `<repo>/shared/contract/<name>` |
 | baseline schema | `<_MEIPASS>/contract/software-baseline.schema.json` | `<repo>/baseline/software-baseline.schema.json` |
 | HTML template | `<_MEIPASS>/antigravity_engine/templates/` (relative to `render/html.py`) | `engine/antigravity_engine/templates/` |
 | baseline data | `--baseline PATH`; if omitted, `<engine folder>/../baseline/software-baseline.json` | `--baseline PATH`; if omitted, `<repo>/baseline/software-baseline.json` |

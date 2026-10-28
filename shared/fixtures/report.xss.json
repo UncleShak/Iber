@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
-  "run_id": "2026-11-14T16-42-07Z_0001",
-  "generated_at": "2026-10-28T00:27:46Z",
+  "run_id": "2026-11-14T17-31-02Z_0005",
+  "generated_at": "2026-10-28T01:57:40Z",
   "engine_version": "0.1.0",
   "baseline_version": "2026-10-27",
   "overall": "green",
@@ -24,7 +24,7 @@
         },
         {
           "label": "Backup programs found",
-          "value": "None"
+          "value": "<script>alert(1)</script><img src=x onerror=alert(2)>"
         },
         {
           "label": "OneDrive folder sync",
@@ -59,7 +59,7 @@
         },
         {
           "label": "Windows version",
-          "value": "Microsoft Windows 11 Pro (build 22631)",
+          "value": "<script>alert(1)</script><img src=x onerror=alert(2)> (build 22631)",
           "status": "green"
         }
       ],
@@ -69,8 +69,13 @@
       "id": "software",
       "title": "Outdated software",
       "status": "green",
-      "explanation": "The 2 programs on our watch list are up to date.",
+      "explanation": "The 3 programs on our watch list are up to date.",
       "evidence": [
+        {
+          "label": "Google Chrome",
+          "value": "142.0.7444.175, up to date",
+          "status": "green"
+        },
         {
           "label": "Adobe Acrobat Reader",
           "value": "25.001.20937, up to date",
@@ -92,11 +97,11 @@
       "id": "protection",
       "title": "Ransomware protections",
       "status": "green",
-      "explanation": "Antivirus, drive encryption and Microsoft Defender's anti-ransomware protections are all on.",
+      "explanation": "The protections we could check are all on.",
       "evidence": [
         {
           "label": "Antivirus",
-          "value": "Microsoft Defender on and up to date",
+          "value": "Protected by <script>alert(1)</script><img src=x onerror=alert(2)>",
           "status": "green"
         },
         {
@@ -106,13 +111,11 @@
         },
         {
           "label": "Controlled folder access",
-          "value": "On",
-          "status": "green"
+          "value": "Only works when Microsoft Defender is your antivirus"
         },
         {
           "label": "Anti-ransomware rules",
-          "value": "3 of 3 recommended rules on",
-          "status": "green"
+          "value": "Only works when Microsoft Defender is your antivirus"
         }
       ],
       "fix_ids": []
@@ -151,7 +154,7 @@
   "top_fixes": [],
   "scan": {
     "is_admin": true,
-    "duration_ms": 8420,
-    "os_caption": "Microsoft Windows 11 Pro"
+    "duration_ms": 8015,
+    "os_caption": "<script>alert(1)</script><img src=x onerror=alert(2)>"
   }
 }

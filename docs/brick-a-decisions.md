@@ -579,10 +579,10 @@ TAMPERED although step 3 accepts the same major.minor. When major.minor
 match, step 4 also ignores the patch part of the report's engine_version.
 Test: `test_patch_release_of_same_minor_still_verifies`.
 
-**5. Schema location.** Appendix A.3 puts evidence.schema.json in
-shared/contract/ (Brick B). It is not there yet, so evidence.py carries an
-inline copy of A.3 (`EVIDENCE_SCHEMA`) for step 1. Once B adds the file,
-switch to schema_path("evidence.schema.json") and add it to engine.spec.
+**5. Schema location.** CHANGED 2026-10-28 when main was merged in:
+step 1 now validates against shared/contract/evidence.schema.json (Brick B,
+identical to A.3), bundled under contract/ by engine.spec. The inline copy
+is gone.
 
 **6. Edits that cannot change the report.** Flipping a scan field that does
 not affect any rating (realtime_enabled when antivirus is already off) and
