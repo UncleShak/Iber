@@ -1,45 +1,299 @@
 """action-plan.pdf one-pager from the report model only (s0.8, s4.11).
 
-Minimal version wired in by the CLI (phase 7); phase 9 owns the layout and
-the one-page guarantee. Content: header (overall, summary, date), the five
-category statuses, then top_fixes with title, why and steps.
+Canvas API only, every block at an absolute position from the s4.11 layout
+table, so nothing can flow onto a second page. Text never wraps past its
+block: every line is cut with an ellipsis at the box width. Helvetica only;
+status symbols are drawn as shapes because the built-in fonts carry no
+glyphs for the s4.10 Unicode symbols.
+
+Standalone: python -m antigravity_engine.render.pdf report.json action-plan.pdf
 """
 
+import json
+import sys
+from collections.abc import Sequence
 from pathlib import Path
 
+from reportlab.lib.colors import HexColor
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 
-MARGIN = 50
-LINE = 14
+from antigravity_engine.parser import validate_schema
+from antigravity_engine.render.html import BADGES, PRODUCT, RAG_COLOURS, human_date
+from antigravity_engine.report_model import REPORT_SCHEMA
+
+PAGE_W, PAGE_H = A4
+MARGIN = 15 * mm
+LEFT = MARGIN
+RIGHT = PAGE_W - MARGIN
+WIDTH = RIGHT - LEFT
+
+FONT = "Helvetica"
+BOLD = "Helvetica-Bold"
+ELLIPSIS = "\u2026"
+DOT = "\u00b7"
+EM_DASH = "\u2014"
+
+TITLE = f"{PRODUCT} {EM_DASH} Cyber Health Action Plan"
+ORG_MAX = 40
+SUMMARY_LINES = 2
+MAX_STEPS = 4
+MORE_STEPS = f"{ELLIPSIS}see full report"
+NOTHING_URGENT = "Nothing urgent. Re-check monthly."
+FOOTER_PRIVACY = (
+    f"Generated locally {EM_DASH} nothing was uploaded. Guidance only, not a full audit."
+)
+NOT_ADMIN = "Scanned without admin rights, so some checks were skipped."
+
+# s4.11 layout table, mm from the top edge.
+HEADER = (15, 40)
+SUMMARY = (42, 55)
+STRIP = (58, 75)
+FIXES = (80, 255)
+FIX_BOX = 55
+FIX_GAP = 5
+FOOTER = (265, 282)
+
+INK = HexColor("#101828")
+MUTED = HexColor(RAG_COLOURS["grey"])
+RULE = HexColor("#d0d5dd")
 
 
-def render(report: dict, path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+def y_mm(top: float) -> float:
+    """Distance from the top edge in mm -> ReportLab y in points."""
+    return PAGE_H - top * mm
+
+
+def tone(status: str) -> tuple:
+    """(ink, background) for a status, from the s4.3 tokens."""
+    name = BADGES[status]["tone"]
+    return HexColor(RAG_COLOURS[name]), HexColor(RAG_COLOURS[f"{name}-bg"])
+
+
+def fit(text: str, font: str, size: float, width: float) -> str:
+    """Cut text with an ellipsis so it is no wider than width points."""
+    if stringWidth(text, font, size) <= width:
+        return text
+    while text and stringWidth(text.rstrip() + ELLIPSIS, font, size) > width:
+        text = text[:-1]
+    return text.rstrip() + ELLIPSIS
+
+
+def wrap(text: str, font: str, size: float, width: float, max_lines: int) -> list[str]:
+    """Greedy word wrap into at most max_lines; the last line takes the rest and is cut."""
+    words = text.split()
+    lines: list[str] = []
+    while words and len(lines) < max_lines - 1:
+        line = words.pop(0)
+        while words and stringWidth(f"{line} {words[0]}", font, size) <= width:
+            line = f"{line} {words.pop(0)}"
+        lines.append(fit(line, font, size, width))
+    if words:
+        lines.append(fit(" ".join(words), font, size, width))
+    return lines
+
+
+def truncate_org(org: str) -> str:
+    return org if len(org) <= ORG_MAX else org[: ORG_MAX - 1].rstrip() + ELLIPSIS
+
+
+def fix_meta(fix: dict) -> str:
+    meta = f"~{fix['effort_minutes']} min"
+    return f"{meta} {DOT} Needs admin" if fix["needs_admin"] else meta
+
+
+def _text(c, x: float, y: float, text: str, font: str = FONT, size: float = 10,
+          colour=INK, width: float | None = None) -> None:
+    c.setFont(font, size)
+    c.setFillColor(colour)
+    c.drawString(x, y, fit(text, font, size, width) if width is not None else text)
+
+
+def _symbol(c, status: str, x: float, y: float, size: float) -> None:
+    """s4.10 symbol drawn as a shape, centred on (x, y): circle, triangle, tick, no-entry, cross."""
+    ink, _ = tone(status)
+    r = size / 2
+    c.saveState()
+    c.setFillColor(ink)
+    c.setStrokeColor(ink)
+    c.setLineWidth(max(size / 7, 0.8))
+    c.setLineCap(1)
+    if status == "red":
+        c.circle(x, y, r * 0.85, stroke=0, fill=1)
+    elif status == "amber":
+        p = c.beginPath()
+        p.moveTo(x - r, y - r * 0.85)
+        p.lineTo(x + r, y - r * 0.85)
+        p.lineTo(x, y + r * 0.9)
+        p.close()
+        c.drawPath(p, stroke=0, fill=1)
+    elif status == "green":
+        p = c.beginPath()
+        p.moveTo(x - r * 0.8, y)
+        p.lineTo(x - r * 0.2, y - r * 0.6)
+        p.lineTo(x + r * 0.85, y + r * 0.7)
+        c.drawPath(p, stroke=1, fill=0)
+    elif status == "unavailable":
+        c.circle(x, y, r * 0.8, stroke=1, fill=0)
+        c.line(x - r * 0.56, y - r * 0.56, x + r * 0.56, y + r * 0.56)
+    else:
+        c.line(x - r * 0.7, y - r * 0.7, x + r * 0.7, y + r * 0.7)
+        c.line(x - r * 0.7, y + r * 0.7, x + r * 0.7, y - r * 0.7)
+    c.restoreState()
+
+
+def _box(c, x: float, top: float, w: float, h: float, status: str, dashed: bool = False) -> None:
+    """Filled, bordered box; top and h in mm, x and w in points."""
+    ink, bg = tone(status)
+    c.saveState()
+    c.setFillColor(bg)
+    c.setStrokeColor(ink)
+    c.setLineWidth(1)
+    if dashed:
+        c.setDash(3, 2)
+    c.roundRect(x, y_mm(top + h), w, h * mm, 2 * mm, stroke=1, fill=1)
+    c.restoreState()
+
+
+def _status_label(c, status: str, x: float, y: float, size: float, width: float) -> None:
+    """Symbol + word, never colour alone."""
+    ink, _ = tone(status)
+    _symbol(c, status, x + size / 2, y + size * 0.35, size)
+    _text(c, x + size * 1.4, y, BADGES[status]["word"], BOLD, size, ink, width - size * 1.4)
+
+
+def _header(c, report: dict, org: str | None) -> None:
+    top, bottom = HEADER
+    badge_w = 42 * mm
+    text_w = WIDTH - badge_w - 4 * mm
+    _text(c, LEFT, y_mm(top + 8), TITLE, BOLD, 17, INK, text_w)
+    line = f"Checked on {human_date(report['generated_at'])}"
+    if org:
+        line = f"{truncate_org(org)} {DOT} {line}"
+    _text(c, LEFT, y_mm(top + 15), line, FONT, 10, MUTED, text_w)
+    _text(c, LEFT, y_mm(top + 21), report["scan"]["os_caption"], FONT, 9, MUTED, text_w)
+
+    overall = report["overall"]
+    _box(c, RIGHT - badge_w, top + 2, badge_w, 16, overall)
+    _status_label(c, overall, RIGHT - badge_w + 4 * mm, y_mm(top + 12), 14, badge_w - 8 * mm)
+
+    c.setStrokeColor(RULE)
+    c.setLineWidth(0.75)
+    c.line(LEFT, y_mm(bottom), RIGHT, y_mm(bottom))
+
+
+def _summary(c, report: dict) -> None:
+    top, _ = SUMMARY
+    lines = wrap(report["summary"], FONT, 12, WIDTH, SUMMARY_LINES)
+    for n, line in enumerate(lines):
+        _text(c, LEFT, y_mm(top + 5 + n * 5.5), line, FONT, 12)
+
+
+def _strip(c, report: dict) -> None:
+    top, bottom = STRIP
+    gap = 3 * mm
+    cats = report["categories"]
+    w = (WIDTH - gap * (len(cats) - 1)) / len(cats)
+    inner = w - 5 * mm
+    for n, cat in enumerate(cats):
+        x = LEFT + n * (w + gap)
+        _box(c, x, top, w, bottom - top, cat["status"], dashed=cat["status"] == "failed")
+        for i, line in enumerate(wrap(cat["title"], BOLD, 8.5, inner, 2)):
+            _text(c, x + 2.5 * mm, y_mm(top + 5 + i * 3.6), line, BOLD, 8.5)
+        _status_label(c, cat["status"], x + 2.5 * mm, y_mm(bottom - 3), 9, inner)
+
+
+def _fix(c, rank: int, fix: dict, top: float) -> None:
+    ink, _ = tone(fix["severity"])
+    x = LEFT
+    c.saveState()
+    c.setStrokeColor(RULE)
+    c.setLineWidth(1)
+    c.roundRect(x, y_mm(top + FIX_BOX), WIDTH, FIX_BOX * mm, 2 * mm, stroke=1, fill=0)
+    c.setFillColor(ink)
+    c.rect(x, y_mm(top + FIX_BOX), 2 * mm, FIX_BOX * mm, stroke=0, fill=1)
+    c.restoreState()
+
+    _text(c, x + 5 * mm, y_mm(top + 11), str(rank), BOLD, 22, ink)
+    tx = x + 15 * mm
+    tw = RIGHT - 4 * mm - tx
+    _text(c, tx, y_mm(top + 8), fix["title"], BOLD, 13, INK, tw)
+    y = top + 14
+    for line in wrap(fix["why"], FONT, 10, tw, 2):
+        _text(c, tx, y_mm(y), line, FONT, 10)
+        y += 4.4
+    y += 1.6
+    for n, step in enumerate(fix["steps"][:MAX_STEPS], start=1):
+        _text(c, tx, y_mm(y), f"{n}. {step}", FONT, 10, INK, tw)
+        y += 4.4
+    if len(fix["steps"]) > MAX_STEPS:
+        _text(c, tx, y_mm(y), MORE_STEPS, FONT, 10, MUTED, tw)
+    _text(c, tx, y_mm(top + FIX_BOX - 4), fix_meta(fix), BOLD, 9, MUTED, tw)
+
+
+def _fixes(c, report: dict) -> None:
+    top, _ = FIXES
     fixes = {f["id"]: f for f in report["fixes"]}
-    c = canvas.Canvas(str(path), pagesize=A4)
-    _, height = A4
-    y = height - MARGIN
+    top_fixes = report["top_fixes"][:3]
+    if not top_fixes:
+        _box(c, LEFT, top, WIDTH, 25, "green")
+        _symbol(c, "green", LEFT + 10 * mm, y_mm(top + 12.5), 16)
+        _text(c, LEFT + 18 * mm, y_mm(top + 14.5), NOTHING_URGENT, BOLD, 15,
+              tone("green")[0], WIDTH - 22 * mm)
+        return
+    for n, fix_id in enumerate(top_fixes, start=1):
+        _fix(c, n, fixes[fix_id], top + (n - 1) * (FIX_BOX + FIX_GAP))
 
-    def line(text: str, font: str = "Helvetica", size: int = 10) -> None:
-        nonlocal y
-        c.setFont(font, size)
-        c.drawString(MARGIN, y, text)
-        y -= LINE
 
-    line(f"Overall: {report['overall'].upper()}", "Helvetica-Bold", 16)
-    line(report["summary"])
-    line(f"Generated {report['generated_at']}")
-    y -= LINE
-    for cat in report["categories"]:
-        line(f"{cat['title']}: {cat['status']}")
-    y -= LINE
-    for n, fix_id in enumerate(report["top_fixes"], start=1):
-        fix = fixes[fix_id]
-        line(f"{n}. {fix['title']}", "Helvetica-Bold", 11)
-        line(fix["why"])
-        for step in fix["steps"]:
-            line(f"  - {step}")
-        y -= LINE / 2
+def _footer(c, report: dict) -> None:
+    top, _ = FOOTER
+    c.setStrokeColor(RULE)
+    c.setLineWidth(0.75)
+    c.line(LEFT, y_mm(top), RIGHT, y_mm(top))
+    _text(c, LEFT, y_mm(top + 5), FOOTER_PRIVACY, BOLD, 9, INK, WIDTH)
+    versions = (
+        f"Engine {report['engine_version']} {DOT} Baseline {report['baseline_version']}"
+        f" {DOT} Run {report['run_id']}"
+    )
+    _text(c, LEFT, y_mm(top + 10), versions, FONT, 8.5, MUTED, WIDTH)
+    if not report["scan"]["is_admin"]:
+        _text(c, LEFT, y_mm(top + 15), NOT_ADMIN, FONT, 8.5, MUTED, WIDTH)
+
+
+def render(report: dict, path: Path, org: str | None = None) -> int:
+    """Draw the one-pager; returns the number of pages drawn (always 1).
+
+    org is the licence organisation, known only to the app (D16); omitted if None.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # invariant: fixed creation date and document id, so the same report gives the same bytes.
+    c = canvas.Canvas(str(path), pagesize=A4, invariant=1)
+    c.setTitle(TITLE)
+    c.setAuthor(PRODUCT)
+    _header(c, report, org)
+    _summary(c, report)
+    _strip(c, report)
+    _fixes(c, report)
+    _footer(c, report)
     c.showPage()
+    pages = c.getPageNumber() - 1
     c.save()
+    return pages
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = list(sys.argv[1:] if argv is None else argv)
+    if len(args) != 2:
+        print("usage: python -m antigravity_engine.render.pdf REPORT_JSON OUT_PDF",
+              file=sys.stderr)
+        return 2
+    report = json.loads(Path(args[0]).read_text(encoding="utf-8"))
+    validate_schema(report, REPORT_SCHEMA)
+    render(report, Path(args[1]))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

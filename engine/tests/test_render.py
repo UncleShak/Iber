@@ -1,8 +1,9 @@
-"""report.html: s4.10 rules, autoescape, unavailable vs failed rows (phase 8)."""
+"""report.html (phase 8, s4.10) and action-plan.pdf (phase 9, s4.11)."""
 
 import copy
 import json
 import re
+from pathlib import Path
 
 import pytest
 
@@ -10,7 +11,7 @@ from antigravity_engine.__main__ import assess
 from markupsafe import escape
 
 from antigravity_engine.parser import ContractError, parse_path
-from antigravity_engine.render import html
+from antigravity_engine.render import html, pdf
 from conftest import FIXTURES
 
 SCAN_FIXTURES = sorted(FIXTURES.glob("scan.*.json"))
@@ -327,9 +328,244 @@ def test_main_usage(capsys):
     assert "usage" in capsys.readouterr().err
 
 
-
-
 def test_renderer_never_reads_the_scan():
     # s2.3 row 9: render from the report model only.
     source = (html.TEMPLATES.parent / "render" / "html.py").read_text(encoding="ascii")
+    assert "parse_path" not in source and "ScanModel" not in source
+
+
+# --- action-plan.pdf (s4.11, phase 9) ---
+
+
+def _pdf_page_count(path) -> int:
+    """Page objects in the file; "/Type /Pages" is the tree root, not a page."""
+    return len(re.findall(rb"/Type /Page(?![a-zA-Z])", path.read_bytes()))
+
+
+def _all_green(report: dict) -> dict:
+    out = copy.deepcopy(report)
+    out["overall"] = "green"
+    for c in out["categories"]:
+        c["status"] = "green"
+        c["fix_ids"] = []
+    out["fixes"] = []
+    out["top_fixes"] = []
+    return out
+
+
+def _stress(report: dict) -> dict:
+    """Every status in the strip and fixes far longer than any box."""
+    out = copy.deepcopy(report)
+    for c, status in zip(out["categories"], ["red", "amber", "green", "unavailable", "failed"]):
+        c["status"] = status
+        c["title"] = "A category title much too long for one strip box " * 2
+    out["summary"] = "This summary sentence keeps going far past two lines of text. " * 8
+    for f in out["fixes"]:
+        f["title"] = "W" * 200
+        f["why"] = "A reason that wraps and wraps. " * 20
+        f["steps"] = [f"Step with very long text {'x' * 150}"] * 9
+    return out
+
+
+@pytest.mark.parametrize("path", SCAN_FIXTURES, ids=lambda p: p.name)
+def test_pdf_is_one_page_for_every_fixture(path, baseline, tmp_path):
+    out = tmp_path / "action-plan.pdf"
+    assert pdf.render(_report(path, baseline), out) == 1
+    assert out.read_bytes().startswith(b"%PDF")
+    assert _pdf_page_count(out) == 1
+
+
+def test_pdf_all_green_is_one_page(defender_off, tmp_path):
+    out = tmp_path / "action-plan.pdf"
+    assert pdf.render(_all_green(defender_off), out) == 1
+    assert out.read_bytes().startswith(b"%PDF")
+    assert _pdf_page_count(out) == 1
+
+
+def test_pdf_overflowing_report_is_still_one_page(defender_off, tmp_path):
+    out = tmp_path / "action-plan.pdf"
+    org = "An Organisation Name Far Longer Than Forty Characters (Pty) Ltd"
+    assert pdf.render(_stress(defender_off), out, org=org) == 1
+    assert _pdf_page_count(out) == 1
+
+
+def test_pdf_xss_fixture_does_not_raise(baseline, tmp_path):
+    out = tmp_path / "action-plan.pdf"
+    assert pdf.render(_report(XSS, baseline), out) == 1
+
+
+def test_pdf_non_latin_text_does_not_raise(defender_off, tmp_path):
+    report = copy.deepcopy(defender_off)
+    report["fixes"][0]["title"] = "\u4e2d\u6587 \U0001F600 <script>alert(1)</script>"
+    assert pdf.render(report, tmp_path / "action-plan.pdf", org="\u00c9cole \u4e2d") == 1
+
+
+def test_pdf_render_draws_one_show_page(defender_off, tmp_path, monkeypatch):
+    # s4.11 test: the canvas reports exactly one showPage() call.
+    calls = []
+    real = pdf.canvas.Canvas.showPage
+    monkeypatch.setattr(pdf.canvas.Canvas, "showPage",
+                        lambda self: (calls.append(1), real(self))[1])
+    pdf.render(defender_off, tmp_path / "action-plan.pdf")
+    assert calls == [1]
+
+
+def test_pdf_is_deterministic(defender_off, tmp_path):
+    a, b = tmp_path / "a.pdf", tmp_path / "b.pdf"
+    pdf.render(defender_off, a)
+    pdf.render(defender_off, b)
+    assert a.read_bytes() == b.read_bytes()
+
+
+def test_pdf_layout_matches_s4_11_table():
+    assert pdf.PAGE_W == pytest.approx(210 * pdf.mm)
+    assert pdf.PAGE_H == pytest.approx(297 * pdf.mm)
+    assert pdf.MARGIN == pytest.approx(15 * pdf.mm)
+    assert (pdf.HEADER, pdf.SUMMARY, pdf.STRIP, pdf.FIXES, pdf.FOOTER) == (
+        (15, 40), (42, 55), (58, 75), (80, 255), (265, 282))
+    # three fix boxes fill 80-255 mm exactly
+    assert pdf.FIXES[0] + 3 * pdf.FIX_BOX + 2 * pdf.FIX_GAP == pdf.FIXES[1]
+
+
+def test_pdf_uses_s4_3_colours():
+    for status in ("red", "amber", "green"):
+        ink, bg = pdf.tone(status)
+        assert ink.hexval() == "0x" + html.RAG_COLOURS[status][1:]
+        assert bg.hexval() == "0x" + html.RAG_COLOURS[f"{status}-bg"][1:]
+    for status in ("unavailable", "failed"):
+        assert pdf.tone(status)[0].hexval() == "0x" + html.RAG_COLOURS["grey"][1:]
+
+
+def test_pdf_uses_helvetica_only(defender_off, tmp_path):
+    out = tmp_path / "action-plan.pdf"
+    pdf.render(defender_off, out)
+    fonts = set(re.findall(rb"/BaseFont /([A-Za-z-]+)", out.read_bytes()))
+    assert fonts == {b"Helvetica", b"Helvetica-Bold"}
+    assert b"/FontFile" not in out.read_bytes()
+
+
+def test_fit_leaves_short_text_alone():
+    assert pdf.fit("Short", pdf.FONT, 10, 200) == "Short"
+
+
+def test_fit_cuts_with_ellipsis_at_box_width():
+    width = 100
+    cut = pdf.fit("x" * 200, pdf.FONT, 10, width)
+    assert cut.endswith(pdf.ELLIPSIS)
+    assert pdf.stringWidth(cut, pdf.FONT, 10) <= width
+    assert pdf.stringWidth(cut + "x", pdf.FONT, 10) > width
+
+
+def test_wrap_respects_max_lines_and_width():
+    width = 150
+    lines = pdf.wrap("word " * 100, pdf.FONT, 12, width, 2)
+    assert len(lines) == 2
+    assert lines[-1].endswith(pdf.ELLIPSIS)
+    assert all(pdf.stringWidth(line, pdf.FONT, 12) <= width for line in lines)
+
+
+def test_wrap_short_text_is_one_line():
+    assert pdf.wrap("2 urgent issues.", pdf.FONT, 12, 400, 2) == ["2 urgent issues."]
+
+
+def test_org_truncated_to_40_chars():
+    assert pdf.truncate_org("A" * 40) == "A" * 40
+    cut = pdf.truncate_org("B" * 41)
+    assert len(cut) == 40 and cut.endswith(pdf.ELLIPSIS)
+
+
+def test_fix_meta_says_needs_admin_only_when_true():
+    assert pdf.fix_meta({"effort_minutes": 5, "needs_admin": True}) == "~5 min \u00b7 Needs admin"
+    assert pdf.fix_meta({"effort_minutes": 20, "needs_admin": False}) == "~20 min"
+
+
+def test_pdf_wording_matches_s4_11():
+    assert pdf.TITLE == "Antigravity \u2014 Cyber Health Action Plan"
+    assert pdf.NOTHING_URGENT == "Nothing urgent. Re-check monthly."
+    assert pdf.MORE_STEPS == "\u2026see full report"
+    assert pdf.MAX_STEPS == 4
+    assert pdf.FOOTER_PRIVACY == (
+        "Generated locally \u2014 nothing was uploaded. Guidance only, not a full audit.")
+
+
+def _drawn_strings(report, tmp_path, monkeypatch) -> list[str]:
+    drawn = []
+    real = pdf.canvas.Canvas.drawString
+    monkeypatch.setattr(pdf.canvas.Canvas, "drawString",
+                        lambda self, x, y, text, *a, **k: (drawn.append(text),
+                                                           real(self, x, y, text, *a, **k))[1])
+    pdf.render(report, tmp_path / "action-plan.pdf")
+    return drawn
+
+
+def test_pdf_shows_four_steps_then_see_full_report(defender_off, tmp_path, monkeypatch):
+    report = copy.deepcopy(defender_off)
+    fix = next(f for f in report["fixes"] if f["id"] == report["top_fixes"][0])
+    fix["steps"] = [f"Step {n}" for n in range(1, 7)]
+    drawn = _drawn_strings(report, tmp_path, monkeypatch)
+    assert [s for s in drawn if s.startswith(("1. Step", "4. Step"))] == ["1. Step 1", "4. Step 4"]
+    assert "5. Step 5" not in drawn
+    assert pdf.MORE_STEPS in drawn
+
+
+def test_pdf_draws_top_fixes_in_report_order(defender_off, tmp_path, monkeypatch):
+    drawn = _drawn_strings(defender_off, tmp_path, monkeypatch)
+    titles = {f["id"]: f["title"] for f in defender_off["fixes"]}
+    expected = [titles[i] for i in defender_off["top_fixes"]]
+    assert [s for s in drawn if s in expected] == expected
+    assert [s for s in drawn if s in ("1", "2", "3")] == ["1", "2", "3"][: len(expected)]
+
+
+def test_pdf_zero_fixes_says_nothing_urgent(defender_off, tmp_path, monkeypatch):
+    drawn = _drawn_strings(_all_green(defender_off), tmp_path, monkeypatch)
+    assert pdf.NOTHING_URGENT in drawn
+
+
+def test_pdf_strip_has_word_for_every_category(defender_off, tmp_path, monkeypatch):
+    drawn = _drawn_strings(defender_off, tmp_path, monkeypatch)
+    words = [html.BADGES[c["status"]]["word"] for c in defender_off["categories"]]
+    overall = html.BADGES[defender_off["overall"]]["word"]
+    for word in set(words):
+        assert drawn.count(word) == words.count(word) + (word == overall)
+
+
+def test_pdf_footer_has_privacy_line_and_versions(defender_off, tmp_path, monkeypatch):
+    drawn = _drawn_strings(defender_off, tmp_path, monkeypatch)
+    assert pdf.FOOTER_PRIVACY in drawn
+    versions = next(s for s in drawn if s.startswith("Engine "))
+    assert defender_off["engine_version"] in versions
+    assert defender_off["baseline_version"] in versions
+
+
+def test_pdf_every_drawn_line_fits_the_page(defender_off, tmp_path, monkeypatch):
+    drawn = []
+    real = pdf.canvas.Canvas.drawString
+
+    def spy(self, x, y, text, *a, **k):
+        drawn.append((x, y, self.stringWidth(text, self._fontname, self._fontsize)))
+        return real(self, x, y, text, *a, **k)
+
+    monkeypatch.setattr(pdf.canvas.Canvas, "drawString", spy)
+    pdf.render(_stress(defender_off), tmp_path / "action-plan.pdf",
+               org="Org " * 30)
+    for x, y, w in drawn:
+        assert pdf.LEFT <= x and x + w <= pdf.RIGHT + 0.01
+        assert pdf.y_mm(pdf.FOOTER[1]) <= y <= pdf.y_mm(pdf.HEADER[0])
+
+
+def test_pdf_main_renders_report_json(defender_off, tmp_path):
+    src = tmp_path / "report.json"
+    src.write_text(json.dumps(defender_off), encoding="utf-8")
+    out = tmp_path / "action-plan.pdf"
+    assert pdf.main([str(src), str(out)]) == 0
+    assert out.read_bytes().startswith(b"%PDF")
+
+
+def test_pdf_main_usage(capsys):
+    assert pdf.main([]) == 2
+    assert "usage" in capsys.readouterr().err
+
+
+def test_pdf_renderer_never_reads_the_scan():
+    source = Path(pdf.__file__).read_text(encoding="ascii")
     assert "parse_path" not in source and "ScanModel" not in source
