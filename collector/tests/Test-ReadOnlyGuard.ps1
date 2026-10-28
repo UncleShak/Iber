@@ -631,22 +631,11 @@ Test-Case 'MockFile path cmdlets in collector.ps1 with a parameter pass' {
     Assert-Passes (Invoke-GuardOn @{ 'collector.ps1' = (Lines @('param([string]$MockFile)', 'if ($MockFile -and -not (Test-Path -LiteralPath $MockFile)) { Write-Output 1 }')) })
 }
 
-# the pending-probe list must shrink as probes are written
-Test-Case 'No name in $AgPendingProbes is defined in the real collector' {
-    Assert-Run
+# every probe is defined now, so the guard keeps no pending-probe list
+Test-Case 'No pending-probe list exists in the guard' {
+    Assert-True ([IO.File]::Exists($guard)) 'Test-ReadOnly.ps1 does not exist'
     $txt = [IO.File]::ReadAllText($guard)
-    $m = [regex]::Match($txt, '(?s)\$AgPendingProbes\s*=\s*@\((.*?)\)')
-    Assert-True $m.Success 'AgPendingProbes list not found'
-    $names = @([regex]::Matches($m.Groups[1].Value, "'([^']+)'") | ForEach-Object { $_.Groups[1].Value })
-    Assert-True ($names.Count -gt 0) 'AgPendingProbes is empty (delete the list and this test)'
-    foreach ($f in @(Get-ChildItem -LiteralPath $collRoot -Recurse -File -Filter *.ps1)) {
-        $rel = $f.FullName.Substring($collRoot.Length).TrimStart('\')
-        if ($rel -match '^(tests|mocks)\\') { continue }
-        $body = [IO.File]::ReadAllText($f.FullName)
-        foreach ($n in $names) {
-            if ($body -match ('(?im)^\s*function\s+' + [regex]::Escape($n) + '\b')) { throw "$n is now defined in $rel; remove it from AgPendingProbes" }
-        }
-    }
+    Assert-True ($txt -notmatch 'AgPendingProbes') 'the guard still mentions AgPendingProbes'
 }
 
 Write-Output "Passed: $script:passed  Failed: $script:failed"

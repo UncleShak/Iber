@@ -12,15 +12,13 @@ $ErrorActionPreference = 'Stop'
 # may do lives in this block.
 # =====================================================================================================
 
-# Probe entry points called by collector.ps1 that Phases 3 and 4 will define. Delete names as they are defined.
-$AgPendingProbes = @('Get-AgBackup', 'Get-AgPatch', 'Get-AgSoftware', 'Get-AgRecovery')
-
 # Type literals allowed anywhere (lower-case, without "System." prefix, without []).
 $AgAllowedTypes = @(
     'console', 'diagnostics.stopwatch', 'datetime', 'globalization.cultureinfo', 'regex', 'text.regularexpressions.regexoptions',
     'string', 'io.path', 'security.principal.windowsprincipal', 'security.principal.windowsidentity',
     'security.principal.windowsbuiltinrole', 'argumentexception', 'security.cryptography.sha256', 'text.encoding',
-    'io.file', 'ordered', 'int', 'bool', 'exception', 'collections.specialized.ordereddictionary'
+    'io.file', 'ordered', 'int', 'bool', 'exception', 'collections.specialized.ordereddictionary',
+    'management.managementdatetimeconverter'   # Phase 4: Recovery.ps1, converts a WMI restore-point time string (pure parsing)
 )
 # Extra types allowed only as a parameter type constraint (never as a cast or :: target).
 $AgParamTypes = @('switch', 'scriptblock')
@@ -34,7 +32,9 @@ $AgAllowedMethods = @(
 $AgAllowedStaticMethods = @(
     'diagnostics.stopwatch.startnew', 'regex.replace', 'regex.escape', 'io.path.getfilename',
     'security.principal.windowsidentity.getcurrent', 'security.cryptography.sha256.create', 'string.isnullorempty',
-    'argumentexception.new', 'io.file.writealltext'
+    'argumentexception.new', 'io.file.writealltext',
+    'datetime.fromfiletimeutc',                         # Phase 4: Backup.ps1, File History ProtectedUpToTime (pure conversion)
+    'management.managementdatetimeconverter.todatetime'   # Phase 4: Recovery.ps1, restore-point CreationTime (pure parsing)
 )
 # Property/method names that give reflection or provider access; flagged wherever they appear.
 $AgReflectiveProps = @('Assembly', 'ImplementingType', 'InvokeProvider', 'InvokeCommand', 'Module', 'ScriptBlock', 'PSObject',
@@ -553,7 +553,7 @@ function Invoke-AgReadOnlyScan([string]$Root) {
             }
             $key = ($name -replace '^\w+:', '').ToLowerInvariant()
             if ($AgAllowedCommands -contains $name) { continue }
-            if ($ownFunctions.ContainsKey($key) -or $AgPendingProbes -contains $name) { continue }
+            if ($ownFunctions.ContainsKey($key)) { continue }
             Write-Violation $rel $ln ('command not allowed: ' + (Get-SafeName $name))
         }
 
