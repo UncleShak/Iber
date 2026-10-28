@@ -70,7 +70,7 @@ def test_text_file_exits_2_with_all_categories_failed(tmp_path, capsys):
     assert [c["id"] for c in report["categories"]] == list(CATEGORY_ORDER)
     assert all(c["status"] == "failed" for c in report["categories"])
     assert all(c["explanation"] == CONTRACT_ERROR_EXPLANATION for c in report["categories"])
-    assert "not valid JSON" in report["summary"]
+    assert report["summary"] == "We couldn't read the scan results."
     assert report["fixes"] == [] and report["top_fixes"] == []
     assert "not valid JSON" in capsys.readouterr().err
     assert {p.name for p in out.iterdir()} == {"report.json"}
@@ -88,7 +88,7 @@ def test_wrong_major_schema_version_exits_2(tmp_path, make_raw, write_json, caps
 
     report = _report(tmp_path / "out")
     assert set(_statuses(report).values()) == {"failed"}
-    assert "unsupported schema version" in report["summary"]
+    assert "unsupported schema version" not in report["summary"]
     assert "unsupported schema version" in capsys.readouterr().err
 
 
@@ -227,3 +227,118 @@ def test_outdated_app_names_reach_update_steps(tmp_path, make_raw, write_json):
     report = _report(tmp_path / "out")
     fix = next(f for f in report["fixes"] if f["id"] == "update-outdated-apps")
     assert any("Google Chrome" in step for step in fix["steps"])
+
+
+# --- --run-id (D4) ---
+
+APP_RUN_ID = "2026-11-14T18-00-00Z_beef"
+
+
+def test_run_id_names_the_error_report(tmp_path):
+    bad = tmp_path / "scan.txt"
+    bad.write_text("not json", encoding="utf-8")
+    assert _run(bad, tmp_path / "out", "--run-id", APP_RUN_ID) == 2
+    assert _report(tmp_path / "out")["run_id"] == APP_RUN_ID
+
+
+def test_error_report_without_run_id_ends_0000(tmp_path):
+    bad = tmp_path / "scan.txt"
+    bad.write_text("not json", encoding="utf-8")
+    assert _run(bad, tmp_path / "out") == 2
+    assert _report(tmp_path / "out")["run_id"].endswith("_0000")
+
+
+def test_invalid_run_id_is_ignored_with_warning(tmp_path, capsys):
+    bad = tmp_path / "scan.txt"
+    bad.write_text("not json", encoding="utf-8")
+    assert _run(bad, tmp_path / "out", "--run-id", "my-run") == 2
+    assert _report(tmp_path / "out")["run_id"].endswith("_0000")
+    assert "ignoring invalid --run-id 'my-run'" in capsys.readouterr().err
+
+
+def test_valid_scan_keeps_its_own_run_id_and_warns_on_mismatch(tmp_path, capsys):
+    out = tmp_path / "out"
+    assert _run(HEALTHY, out, "--json-only", "--run-id", APP_RUN_ID) == 0
+    scan_run_id = json.loads(HEALTHY.read_text("utf-8"))["run_id"]
+    assert _report(out)["run_id"] == scan_run_id
+    bundle = json.loads((out / "evidence.json").read_text("utf-8"))
+    assert bundle["run_id"] == scan_run_id
+    err = capsys.readouterr().err
+    assert f"--run-id {APP_RUN_ID} differs from scan run_id {scan_run_id}" in err
+
+
+def test_matching_run_id_is_silent(tmp_path, capsys):
+    scan_run_id = json.loads(HEALTHY.read_text("utf-8"))["run_id"]
+    assert _run(HEALTHY, tmp_path / "out", "--json-only", "--run-id", scan_run_id) == 0
+    assert capsys.readouterr().err == ""
+
+
+def test_mismatched_run_id_bundle_still_verifies(tmp_path, capsys):
+    out = tmp_path / "out"
+    assert _run(HEALTHY, out, "--json-only", "--run-id", APP_RUN_ID) == 0
+    baseline = ROOT / "baseline" / "software-baseline.json"
+    assert cli.main(["--verify", str(out / "evidence.json"), "--baseline", str(baseline)]) == 0
+
+
+# --- --org (D16) ---
+
+XSS_ORG = "<script>alert(1)</script>Acme"
+
+
+def _pdf_text(monkeypatch) -> list[str]:
+    from antigravity_engine.render import pdf
+
+    drawn = []
+    real = pdf._text
+    monkeypatch.setattr(pdf, "_text", lambda c, x, y, text, *a, **k: (
+        drawn.append(text), real(c, x, y, text, *a, **k)))
+    return drawn
+
+
+def test_org_in_html_and_pdf_header(tmp_path, monkeypatch):
+    drawn = _pdf_text(monkeypatch)
+    out = tmp_path / "out"
+    assert _run(HEALTHY, out, "--org", "Acme Bakery") == 0
+    assert "Licensed to Acme Bakery" in (out / "report.html").read_text("utf-8")
+    assert any(t.startswith("Acme Bakery ") for t in drawn)
+
+
+@pytest.mark.parametrize("extra", [(), ("--org", ""), ("--org", "   ")])
+def test_no_org_line_without_a_name(tmp_path, extra):
+    out = tmp_path / "out"
+    assert _run(HEALTHY, out, *extra) == 0
+    assert "Licensed to" not in (out / "report.html").read_text("utf-8")
+
+
+def test_org_is_trimmed(tmp_path):
+    out = tmp_path / "out"
+    assert _run(HEALTHY, out, "--org", "  Acme Bakery  ") == 0
+    assert "Licensed to Acme Bakery</p>" in (out / "report.html").read_text("utf-8")
+
+
+def test_org_is_escaped_in_html(tmp_path):
+    out = tmp_path / "out"
+    assert _run(HEALTHY, out, "--org", XSS_ORG) == 0
+    page = (out / "report.html").read_text("utf-8")
+    assert "<script>alert" not in page
+    assert "Licensed to &lt;script&gt;alert(1)&lt;/script&gt;Acme" in page
+
+
+def test_org_never_reaches_report_or_evidence(tmp_path, capsys):
+    out = tmp_path / "out"
+    assert _run(HEALTHY, out, "--org", "Acme Bakery") == 0
+    assert "Acme" not in (out / "report.json").read_text("utf-8")
+    assert "Acme" not in (out / "evidence.json").read_text("utf-8")
+    baseline = ROOT / "baseline" / "software-baseline.json"
+    assert cli.main(["--verify", str(out / "evidence.json"), "--baseline", str(baseline)]) == 0
+
+
+def test_org_does_not_change_report_json(tmp_path):
+    a, b = tmp_path / "a", tmp_path / "b"
+    assert _run(HEALTHY, a, "--json-only") == 0
+    assert _run(HEALTHY, b, "--json-only", "--org", "Acme Bakery") == 0
+    ra = json.loads((a / "report.json").read_text("utf-8"))
+    rb = json.loads((b / "report.json").read_text("utf-8"))
+    ra.pop("generated_at")
+    rb.pop("generated_at")
+    assert ra == rb

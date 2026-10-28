@@ -334,12 +334,19 @@ def test_error_report():
     assert report["fixes"] == [] and report["top_fixes"] == []
     assert report["overall"] == "amber"
     assert report["scan"] == {"is_admin": False, "duration_ms": 0, "os_caption": "Unknown"}
-    assert "not valid JSON" in report["summary"]
+    # D4: plain English only; the parser detail goes to stderr.
+    assert report["summary"] == "We couldn't read the scan results."
     assert report["run_id"] == "2026-11-14T17-02-46Z_0000"
 
 
-def test_error_report_keeps_valid_run_id_and_clips_summary():
+def test_error_report_uses_valid_run_id():
     report = build_error_report("e" * 400, "0.1.0", "unknown",
                                 run_id="2026-11-14T17-02-44Z_0003", generated_at=FIXED_NOW)
     assert report["run_id"] == "2026-11-14T17-02-44Z_0003"
-    assert len(report["summary"]) == 200
+    assert report["summary"] == "We couldn't read the scan results."
+
+
+@pytest.mark.parametrize("run_id", [None, "", "run-7", "2026-11-14T17-02-44Z_XYZ1", 42])
+def test_error_report_invalid_run_id_falls_back_to_generated_at(run_id):
+    report = build_error_report("x", "0.1.0", "unknown", run_id=run_id, generated_at=FIXED_NOW)
+    assert report["run_id"] == "2026-11-14T17-02-46Z_0000"

@@ -15,8 +15,8 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 | D1 | Per-fix severity | High | Before phase 4 | CHANGED 2026-10-28 (Tshedi) |
 | D2 | "n things to tighten up" count | High | Before phase 4 | CHANGED 2026-10-28 (Tshedi) |
 | D3 | Strict CategoryResult guards | Medium | Before phase 4 | CHANGED 2026-10-28 (Tshedi) |
-| D4 | Error report summary and run_id | Medium | Phase 7 (CLI) | OPEN |
-| D5 | generated_at uses the wall clock | Low | Phase 7 / s2.14 work | OPEN |
+| D4 | Error report summary and run_id | Medium | Phase 7 (CLI) | CHANGED 2026-10-28 (Tshedi) |
+| D5 | generated_at uses the wall clock | Low | Phase 7 / s2.14 work | DECIDED 2026-10-28 (Tshedi) |
 | D6 | Em dash written as an escape | Low | Any time | CHANGED 2026-10-28 (Tshedi) |
 | D7 | Software rule evaluation order | High | Phase 5 | DECIDED 2026-10-28 (phase-5 prompt) |
 | D8 | Run-specific fix steps | Medium | Phase 7 (CLI) | DECIDED 2026-10-28 (Tshedi) |
@@ -27,10 +27,10 @@ Logged: 2026-10-27, phase 3 (commit 8ef714d).
 | D13 | When CFA/ASR are excluded; third-party AV always green | High | Phase 6 | DECIDED 2026-10-28 (Tshedi) |
 | D14 | Null fields and all-grey protection category | Medium | Phase 6 | DECIDED 2026-10-28 (Tshedi) |
 | D15 | All-null recovery section rated green | Medium | Any time | CHANGED 2026-10-28 (Tshedi) |
-| D16 | Licence org in the HTML header | Low | Phase 10 / integration | OPEN |
+| D16 | Licence org in the HTML header | Low | Phase 10 / integration | CHANGED 2026-10-28 (Tshedi) |
 | D17 | Failed protection sub-check shown as unavailable | High | Phase 10 | CHANGED 2026-10-28 (phase-10 RPT-01) |
 | D18 | Backup B4/B5/B7 rows carried no status | High | Phase 10 | CHANGED 2026-10-28 (phase-10 RPT-02) |
-| D19 | Evidence bundle gaps in s2.14 | Medium | Before RPT-11 | OPEN |
+| D19 | Evidence bundle gaps in s2.14 | Medium | Before RPT-11 | DECIDED 2026-10-28 (Tshedi) |
 
 ---
 
@@ -149,6 +149,24 @@ report.schema.json, so the realistic risk is small.
 
 ## D4. Error report summary and run_id
 
+**Status.** CHANGED 2026-10-28 by Tshedi. The app's run folder name always
+equals its runId, but scan.json's run_id matches it only when the app
+launched the collector with -RunId. So:
+- new `--run-id ID`: the error report (exit 2) uses it as run_id; an invalid
+  ID is ignored with a stderr warning and the `_0000` fallback stays;
+- a valid scan keeps its own run_id in report.json and evidence.json even if
+  --run-id differs (stderr warning only), because --verify recomputes the
+  report from the embedded scan alone;
+- the error summary is the fixed "We couldn't read the scan results."; the
+  parser detail goes to stderr only.
+Files: `engine/antigravity_engine/__main__.py`, `report_model.py`.
+Tests: `test_run_id_*`, `test_invalid_run_id_is_ignored_with_warning`,
+`test_valid_scan_keeps_its_own_run_id_and_warns_on_mismatch`,
+`test_mismatched_run_id_bundle_still_verifies` (test_cli.py);
+`test_error_report*` (test_aggregator.py).
+
+The original entry follows.
+
 **Gap.** s2.4 step 4 says the error text goes in `summary`; the exact
 wording and what to do when the input has no usable run_id are unstated.
 
@@ -174,6 +192,11 @@ line 1 column 1") is technical for an owner-manager.
 ---
 
 ## D5. generated_at uses the wall clock
+
+**Status.** DECIDED 2026-10-28 by Tshedi: keep the wall clock. --verify
+ignores generated_at (s2.14.2 step 4), and a new Evidence ID per run tells
+two reports of the same scan apart. Tests and fixture regeneration that need
+fixed output pass generated_at or ignore it.
 
 **Gap.** s2.3 says "now" is always `collected_at`, never the wall clock.
 `generated_at` in s0.8 is the time the report was produced.
@@ -475,6 +498,17 @@ evidence behind it. A green category also counts toward the risk score
 
 Logged: 2026-10-28, phase 8.
 
+**Status.** CHANGED 2026-10-28 by Tshedi: new CLI flag `--org NAME`. The app
+verifies the licence and passes only the org name; the engine prints
+"Licensed to {org}" in the report.html header and the org in the PDF header
+(shortened there if long). Blank or whitespace-only means no org line. The org
+is never written to report.json or evidence.json, so the contract and the
+Evidence ID are unchanged, and --verify does not check it: it names the licence
+holder, not anything the scan measured.
+Tests: `test_org_*`, `test_no_org_line_without_a_name` (test_cli.py).
+
+The original entry follows.
+
 **Gap.** s4.10 puts "licence org" in the report.html header, but s2.3 row 9
 says renderers read only the report model, and report.json (s0.8) has no
 org field. The licence token is verified by the app (s3.11, s4.9.3 footer),
@@ -553,7 +587,9 @@ Tests: `test_b4_agent_row_is_amber`, `test_b5_only_the_deciding_rows_are_amber`,
 
 Logged: 2026-10-28, phase 12.
 
-**Status.** OPEN. Each point below is what the code does now.
+**Status.** DECIDED 2026-10-28 by Tshedi: items 1-4, 6 and 7 kept as
+built; item 5 CHANGED when main was merged in. Each point below is what the
+code does.
 
 **1. Baseline hash.** s2.14.1 says "hash of the exact baseline file used".
 Raw bytes differ between an LF checkout (macOS) and a CRLF one (Windows,
